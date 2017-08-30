@@ -23,10 +23,12 @@ public OnPluginStart()
 
 public void OnClientPostAdminCheck(client)
 {
-	if(ADMFLAG_CHEATS)
+	ConVar cvCheats = FindConVar("sv_cheats");
+
+	if ((GetUserFlagBits(client) & ADMFLAG_CHEATS) == ADMFLAG_CHEATS) 
 	{
-		SendConVarValue(client, "sv_cheats", true);
-	}
+    	SendConVarValue(client, cvCheats, "1");
+	} 
 }
 
 public Action:Command_Cheat_Command(client, args)
