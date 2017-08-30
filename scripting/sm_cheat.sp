@@ -1,7 +1,7 @@
 #include <sourcemod>
 #include <sdktools>
 
-#define PLUGIN_VERSION "1.3"
+#define PLUGIN_VERSION "1.4"
 
 
 public Plugin:myinfo = 
@@ -16,11 +16,18 @@ public OnPluginStart()
 {
 	CreateConVar("sm_cheat_version", PLUGIN_VERSION, "Cheat commands version", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
 	
-	RegAdminCmd("sm_c", Command_Cheat_Command, ADMFLAG_CHEATS);
+	RegAdminCmd("sm_ch", Command_Cheat_Command, ADMFLAG_CHEATS);
 	
 	FindConVar("sv_cheats");
 }
 
+public void OnClientPostAdminCheck(client)
+{
+	if(ADMFLAG_CHEATS)
+	{
+		SendConVarValue(client, "sv_cheats", true);
+	}
+}
 
 public Action:Command_Cheat_Command(client, args)
 {
@@ -38,18 +45,18 @@ stock PerformCheatCommand(client, String:cmd[])
 		SetConVarBool(cvar, true);
 	}
 	FakeClientCommand(client, "%s", cmd);
+	ReplyToCommand(client, "[SM] %s used cheat %s.", client, cmd);
 	if(!enabled) {
 		SetConVarBool(cvar, false);
 		SetConVarFlags(cvar, flags);
     }
 	CreateTimer(0.1, ExecDelay, 0);
 	
-	//if (String:cmd = "impulse 101");
-	//{
-		//SetConVarBool(sv_cheats, true);
-		//FakeClientCommand(client, "impulse 101");
-		//SetConVarBool(sv_cheats, false);
-	//}
+	/*if (cmd	< 2)
+	{
+		ReplyToCommand(client, "[SM] Usage: sm_ch <addcond/impulse,...>");
+		return Plugin_Handled;
+	}*/
 }
 
 public Action:ExecDelay(Handle:timer)
