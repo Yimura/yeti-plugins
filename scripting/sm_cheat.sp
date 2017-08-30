@@ -25,7 +25,7 @@ public void OnClientPostAdminCheck(client)
 {
 	ConVar cvCheats = FindConVar("sv_cheats");
 
-	if ((GetUserFlagBits(client) & ADMFLAG_CHEATS) == ADMFLAG_CHEATS) 
+	if ((GetUserFlagBits(client) & ADMFLAG_CHEATS) == ADMFLAG_CHEATS || IsClientInGame(client))
 	{
     	SendConVarValue(client, cvCheats, "1");
 	} 
