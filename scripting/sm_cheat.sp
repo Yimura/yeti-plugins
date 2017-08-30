@@ -21,16 +21,6 @@ public OnPluginStart()
 	FindConVar("sv_cheats");
 }
 
-public void OnClientPostAdminCheck(client)
-{
-	ConVar cvCheats = FindConVar("sv_cheats");
-
-	if ((GetUserFlagBits(client) & ADMFLAG_CHEATS) == ADMFLAG_CHEATS || IsClientInGame(client))
-	{
-    	SendConVarValue(client, cvCheats, "1");
-	} 
-}
-
 public Action:Command_Cheat_Command(client, args)
 {
 	decl String:cmd[65];
@@ -47,7 +37,9 @@ stock PerformCheatCommand(client, String:cmd[])
 		SetConVarBool(cvar, true);
 	}
 	FakeClientCommand(client, "%s", cmd);
-	ReplyToCommand(client, "[SM] %s used cheat %s.", client, cmd);
+	decl String:clientname[64];
+	GetClientName(client, clientname, sizeof(clientname));
+	ReplyToCommand(client, "[SM] %s used cheat %s.", clientname, cmd);
 	if(!enabled) {
 		SetConVarBool(cvar, false);
 		SetConVarFlags(cvar, flags);
@@ -64,4 +56,7 @@ stock PerformCheatCommand(client, String:cmd[])
 public Action:ExecDelay(Handle:timer)
 {
 	ServerCommand("exec sm_cheat_cvars.cfg");
+	{	
+		SetFailState("sm_cheat_cvar.cfg not present, sm_cheat will not work without this.")
+	}
 }
