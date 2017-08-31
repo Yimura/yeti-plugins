@@ -19,7 +19,9 @@ public OnPluginStart()
 {
 	CreateConVar("sm_cheat_version", PLUGIN_VERSION, "Cheat commands version", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
 	
-	RegAdminCmd("sm_ch", Command_Cheat_Command, ADMFLAG_CHEATS);
+	RegAdminCmd("sm_ch", Command_Cheat_Command, ADMFLAG_CHEATS, "Usage: sm_ch <addcond #/hurtme>");
+	
+	//RegAdminCmd("sm_ch impulse 101", Command_Impulse, ADMFLAG_CHEATS, "sm_ch impulse 101 is the only impulse command!");
 	
 	if (LibraryExists("updater"))
 	{
@@ -51,15 +53,17 @@ public Action:Command_Cheat_Command(client, args)
 stock PerformCheatCommand(client, String:cmd[])
 {
 	new Handle:cvar = FindConVar("sv_cheats"), bool:enabled = GetConVarBool(cvar), flags = GetConVarFlags(cvar);
-	if(!enabled) {
+	if(!enabled) 
+	{
 		SetConVarFlags(cvar, flags^(FCVAR_NOTIFY|FCVAR_REPLICATED));
 		SetConVarBool(cvar, true);
 	}
 	FakeClientCommand(client, "%s", cmd);
 	decl String:clientname[64];
 	GetClientName(client, clientname, sizeof(clientname));
-	ReplyToCommand(client, "[SM] %s used cheat %s.", clientname, cmd);
-	if(!enabled) {
+	PrintToChat(client, "[SM] %s used cheat %s.", clientname, cmd);
+	if(!enabled) 
+	{
 		SetConVarBool(cvar, false);
 		SetConVarFlags(cvar, flags);
     }
@@ -76,3 +80,8 @@ public Action:ExecDelay(Handle:timer)
 		}
 	}
 }
+
+/*public Action:Command_Impulse(int client)
+{
+	TF2_RegeneratePlayer(client)
+}*/
