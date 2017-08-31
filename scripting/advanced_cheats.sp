@@ -1,7 +1,10 @@
 #include <sourcemod>
 #include <sdktools>
+#include <updater>
 
-#define PLUGIN_VERSION "1.5"
+#define PLUGIN_VERSION "1.6"
+
+#define UPDATE_URL "http://yetimountain.top/.updater/advanced_cheats/acupdater.txt"
 
 
 public Plugin:myinfo = 
@@ -18,7 +21,23 @@ public OnPluginStart()
 	
 	RegAdminCmd("sm_ch", Command_Cheat_Command, ADMFLAG_CHEATS);
 	
-	FindConVar("sv_cheats");
+	if (LibraryExists("updater"))
+	{
+		Updater_AddPlugin(UPDATE_URL);
+	}
+}
+
+public void OnLibraryAdded(const char[] libname)
+{
+	if(StrEqual(libname, "updater"))
+	{
+		Updater_AddPlugin(UPDATE_URL);
+	}
+}
+
+public int Updater_OnPluginUpdated()
+{
+	ReloadPlugin(GetMyHandle())
 }
 
 public Action:Command_Cheat_Command(client, args)
@@ -45,18 +64,15 @@ stock PerformCheatCommand(client, String:cmd[])
 		SetConVarFlags(cvar, flags);
     }
 	CreateTimer(0.1, ExecDelay, 0);
-	
-	/*if (cmd	< 2)
-	{
-		ReplyToCommand(client, "[SM] Usage: sm_ch <addcond/impulse,...>");
-		return Plugin_Handled;
-	}*/
 }
 
 public Action:ExecDelay(Handle:timer)
 {
 	ServerCommand("exec sm_cheat_cvars.cfg");
 	{	
-		SetFailState("sm_cheat_cvar.cfg not present, sm_cheat will not work without this.")
+		SetFailState("write sm_cheat_cvars.cfg")
+		{
+			ReloadPlugin(GetMyHandle())	
+		}
 	}
 }
