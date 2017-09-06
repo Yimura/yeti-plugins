@@ -4,7 +4,7 @@
 #undef REQUIRE_PLUGIN
 #include <updater>
 
-#define PLUGIN_VERSION "1.11"
+#define PLUGIN_VERSION "1.11.1"
 
 #define UPDATE_URL "http://yetimountain.top/.updater/advanced_cheats/acupdater.txt"
 
