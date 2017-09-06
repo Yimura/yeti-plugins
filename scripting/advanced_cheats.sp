@@ -59,7 +59,7 @@ public Action:Command_Cheat_Command(client, args)
 	GetCmdArgString(cmd, sizeof(cmd));
 	if(args < 1)
 	{
-		PrintToChat(client, "[SM] Usage: sm_ch <cheat-cmd>");
+		ReplyToCommand(client, "[SM] Usage: sm_ch <cheat-cmd>");
 		return Plugin_Handled
 	}
 	else
@@ -67,7 +67,7 @@ public Action:Command_Cheat_Command(client, args)
 		PerformCheatCommand(client, cmd);
 		decl String:clientname[64];
 		GetClientName(client, clientname, sizeof(clientname));
-		PrintToChat(client, "[SM] %s used cheat %s.", clientname, cmd);
+		ShowActivity2(client, "[SM] %s used cheat %s.", clientname, cmd);
 		return Plugin_Handled;
 	}
 }
