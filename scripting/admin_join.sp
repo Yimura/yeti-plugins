@@ -10,6 +10,7 @@
 #include <sdktools>
 
 Handle = g_hPluginEnabled
+Handle = g_hAdminSteamIDs
 
 bool g_bSilentJoin = true
 
@@ -25,6 +26,7 @@ public Plugin myinfo =
 public void OnPluginStart()
 {
 	g_hPluginEnabled = CreateConVar("sm_adminjoin_on", "1", "Enable the plugin", _, true, 0.0, true, 1.0);
+	g_hAdminSteamIDs = CreateConvar("sm_adminjoin_steamids", "STEAM_1:0:55845055", "Admin SteamIDs seperated by ,")
 	
 	HookEvent("teamplay_waiting_ends", Waiting_Ends);
 	
@@ -48,5 +50,6 @@ public Action OnClientPostAdminCheck(client)
 		{
 			ShowHudText(client, 2, "Hi there guys!");
 		}
+		if(id == )
 	}
 }
