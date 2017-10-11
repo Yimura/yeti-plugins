@@ -26,11 +26,13 @@ public Plugin myinfo =
 public void OnPluginStart()
 {
 	g_hPluginEnabled = CreateConVar("sm_adminjoin_on", "1", "Enable the plugin", _, true, 0.0, true, 1.0);
-	g_hAdminSteamIDs = CreateConvar("sm_adminjoin_steamids", "STEAM_1:0:55845055", "Admin SteamIDs seperated by ,")
+	g_hAdminSteamIDs = CreateConvar("sm_adminjoin_steamids", "STEAM_0:1:51792522,STEAM_0:0:50729140", "Admin SteamIDs seperated by ,")
 	
 	HookEvent("teamplay_waiting_ends", Waiting_Ends);
 	
 	SetHudTextParams(0.1, 0.1, 3, 255, 255, 255, 1, 1, 2.0, 2.0, 2.0);
+	
+	AutoExecConfig(true, "Admin_Join");
 }
 
 public Action Waiting_Ends()
@@ -50,6 +52,12 @@ public Action OnClientPostAdminCheck(client)
 		{
 			ShowHudText(client, 2, "Hi there guys!");
 		}
-		if(id == )
+		char sSteamIDs[32]:
+		GetConVarString(g_hAdminSteamIDs, sSteamIDs, sizeof(sSteamIDs));
+		ExplodeString("sSteamIDs", ",", ADMIN_STEAMIDS, 128, 32);
+		if(id == ADMIN_STEAMIDS)
+		{
+			ShowHudText(client, -1, "ADMIN joined the game!");
+		}
 	}
 }
