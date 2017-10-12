@@ -1,18 +1,16 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define DEBUG
-
 #define PLUGIN_AUTHOR "TheTeamGhost (Yimura)"
 #define PLUGIN_VERSION "0.1.0"
 
 #include <sourcemod>
 #include <sdktools>
 
-Handle = g_hPluginEnabled
-Handle = g_hAdminSteamIDs
+Handle = g_hPluginEnabled;
+Handle = g_hAdminSteamIDs;
 
-bool g_bSilentJoin = true
+bool g_bSilentJoin = true;
 
 public Plugin myinfo = 
 {
@@ -26,7 +24,7 @@ public Plugin myinfo =
 public void OnPluginStart()
 {
 	g_hPluginEnabled = CreateConVar("sm_adminjoin_on", "1", "Enable the plugin", _, true, 0.0, true, 1.0);
-	g_hAdminSteamIDs = CreateConvar("sm_adminjoin_steamids", "STEAM_0:1:51792522,STEAM_0:0:50729140", "Admin SteamIDs seperated by ,")
+	g_hAdminSteamIDs = CreateConVar("sm_adminjoin_steamids", "STEAM_0:1:51792522,STEAM_0:0:50729140", "Admin SteamIDs seperated by ,");
 	
 	HookEvent("teamplay_waiting_ends", Waiting_Ends);
 	
@@ -43,7 +41,7 @@ public Action Waiting_Ends()
 	}
 }
 
-public Action OnClientPostAdminCheck(client)
+public void OnClientPostAdminCheck(client)
 {
 	if(!g_bSilentJoin)
 	{
