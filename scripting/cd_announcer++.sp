@@ -4,7 +4,7 @@
 
 #pragma semicolon 1
 
-#define CD_VERSION "2.3"
+#define CD_VERSION "2.3.1"
 
 new Handle:PrintMode 		= INVALID_HANDLE;
 new Handle:ShowAll 		= INVALID_HANDLE;
@@ -18,11 +18,11 @@ new Handle:LogFile		= INVALID_HANDLE;
 
 public Plugin:myinfo = 
 {
-	name = "CD Announcer",
-	author = "Fredd",
+	name = "CD Announcer++",
+	author = "Fredd edited by The Team Ghost",
 	description = "",
 	version = CD_VERSION,
-	url = "www.sourcemod.net"
+	url = "https://forums.alliedmods.net/showthread.php?t=302245"
 }
 public OnMapStart()
 {
@@ -64,9 +64,9 @@ public OnPluginStart()
 	PrintMode	=	CreateConVar( "cd_mode", 	"1",	"1 = by SteamId, 2 = by Ip, 3 = ip and SteamId (Def 1)" );
 	ShowAll		= 	CreateConVar( "cd_showall",	"1",	"1 = show all(connects, and disconnects), 2 = show connects only, 3 = show disconnects only" );
 	Sound		=	CreateConVar( "cd_sound", 	"1",	"Toggles sound on and off (Def 1 = on)" );
-	PrintCountry	=	CreateConVar( "cd_printcountry", "1",	"turns on/off priting country names 0 = off, 1= on (Def 1)" );
+	PrintCountry	=	CreateConVar( "cd_printcountrycity", "1",	"Country Print mode: 0 = off, 1 = country, 2 = country and city (Def 1)" );
 	ShowAdmins	= 	CreateConVar( "cd_showadmins", 	"1",	"Shows Admins on connect/disconnect, 0= don't show, 1 = show (Def 1)" );
-	CountryNameType =	CreateConVar( "cd_country_type","1",	"country name print type 1 = print shortname, 2 = print full name, 3 country short with city, 4 country long with city(Def 1)" );
+	CountryNameType =	CreateConVar( "cd_country_type","1",	"country name print type 1 = print shortname, 2 = print full name, 3 = country short with city, 4 = country long with city (Def 1)" );
 	SoundFile	=	CreateConVar( "cd_sound_file",	"buttons/blip1.wav","Sound file location to be played on a connect/disconnect under the sounds directory (Def =buttons/blip1.wav)" );
 	Logging		=	CreateConVar( "cd_loggin",	"1",	"turns on and off logging of connects and disconnect to a log file 1= on  2 = on only log annoucers 0 = off (Def 1)" );
 	LogFile		=	CreateConVar( "cd_logfile",	"data/cd_logs.log", "location of the log file relative to the sourcemod folder" );
@@ -153,7 +153,20 @@ public OnClientPostAdminCheck( client )
 						case 2:	WriteFileLine( File,"[%s] %s(%s)[%s] connected", Time, gName, gCountry, gAuth );
 					}
 				}
-				
+				// I used Country On/Off switch as a way to add city support into the plugin
+				case 2: 
+				{
+					switch( Log )
+					{
+						case 0:	PrintToChatAll( "%t", "Connected_Auth_3", gName, gCity, gCountry, gAuth );
+						case 1:
+						{
+							PrintToChatAll( "%t", "Connected_Auth_3", gName, gCity, gCountry, gAuth );
+							WriteFileLine( File,"[%s] %s(%s ,%s)[%s] connected", Time, gName, gCity, gCountry, gAuth );
+						}
+						case 2:	WriteFileLine( File,"[%s] %s(%s, %s)[%s] connected", Time, gName, gCity, gCountry, gAuth );
+					}
+				}
 			}	
 		}
 		case 2:
