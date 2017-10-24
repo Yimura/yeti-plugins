@@ -56,7 +56,7 @@
 	}
 	"Connected_3"
 	{
-		"#format"	"{1:s},{2:s},{3:s},{4:s}{5:s}" // name, city, country, auth, ip
+		"#format"	"{1:s},{2:s},{3:s},{4:s},{5:s}" // name, city, country, auth, ip
 		"en"		"{1} connected from {2}, {3} with ID: {4} and IP: {5}"
 	}
 	"Disconnected_Auth_1"
@@ -101,7 +101,7 @@
 	}
 	"Disconnected_3"
 	{
-		"#format"	"{1:s},{2:s},{3:s},{4:s}{5:s}" // name, city, country, auth, ip
+		"#format"	"{1:s},{2:s},{3:s},{4:s},{5:s}" // name, city, country, auth, ip
 		"en"		"{1} disconnected from {2}, {3} with ID: {4} and IP: {5}"
 	}
 }

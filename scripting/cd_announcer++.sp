@@ -51,8 +51,8 @@ public OnMapStart()
 			LogMessage( "%s has been created!", Path );
 			
 			new Handle:File = OpenFile( Path, "a" );
-			WriteFileLine( File,"[%s] %t", Time, "Log Started" );
-			CloseHandle( File );
+			WriteFileLine(File, "[%s] %t", Time, "Log Started");
+			CloseHandle(File);
 		}
 	}
 }
