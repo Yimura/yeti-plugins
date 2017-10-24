@@ -38,5 +38,8 @@ public Steam_FullyLoaded()
 
 public OnClientPostAdminCheck(client);
 {
-
+	if(g_bAllowGroupCheck)
+	{
+		
+	}
 }
