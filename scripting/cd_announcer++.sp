@@ -80,7 +80,7 @@ public OnClientPostAdminCheck( client )
 		return;
 	
 	decl String:gName[MAX_NAME_LENGTH+1], String:iFile[256];
-	decl String:gIp[26], String:gAuth[21], String:gCountry[46];
+	decl String:gIp[26], String:gAuth[21], String:gCity[45], String:gCountry[46];
 	decl String:Time[21], String:iLogFileLoc[PLATFORM_MAX_PATH], String:LogFileLoc[PLATFORM_MAX_PATH];
 	
 	FormatTime( Time, sizeof( Time ), "%m/%d/%y - %I:%M:%S", -1 );
@@ -105,7 +105,7 @@ public OnClientPostAdminCheck( client )
 	
 	switch( PrintCountryNameMode )
 	{
-		case 1:	GeoipGetrecord(gIp, _, _, _, gCountry);
+		case 1:	GeoipGetRecord(gIp, _, _, _, gCountry);
 		case 2: GeoipGetrecord(gIp, _, _, gCountryFull);
 		case 3: GeoipGetRecord(gIp, gCity, _, _, gCountry);
 		case 4: GeoipGetrecord(gIp, gCity, _, gCountryFull);
@@ -176,7 +176,7 @@ public OnClientPostAdminCheck( client )
 			
 			switch( Code )
 			{
-				case 0: 
+				case 0:
 				{
 					switch( Log )
 					{
@@ -200,6 +200,20 @@ public OnClientPostAdminCheck( client )
 							WriteFileLine( File,"[%s] %s(%s)[%s] connected", Time, gName, gCountry, gIp );
 						}
 						case 2:	WriteFileLine( File,"[%s] %s(%s)[%s] connected", Time, gName, gCountry, gIp );
+					}
+				}
+				// IP based join message
+				case 2: 
+				{
+					switch( Log )
+					{
+						case 0:	PrintToChatAll( "%t", "Connected_Auth_3", gName, gCity, gCountry, gIp);
+						case 1:
+						{
+							PrintToChatAll( "%t", "Connected_Auth_3", gName, gCity, gCountry, gIp);
+							WriteFileLine( File,"[%s] %s(%s ,%s)[%s] connected", Time, gName, gCity, gCountry, gIp);
+						}
+						case 2:	WriteFileLine( File,"[%s] %s(%s, %s)[%s] connected", Time, gName, gCity, gCountry, gIp);
 					}
 				}
 			}	
@@ -236,6 +250,20 @@ public OnClientPostAdminCheck( client )
 						}
 						case 2:	WriteFileLine( File,"[%s] %s(%s)[%s][%s] connected", Time, gName, gCountry, gAuth, gIp );
 					}						
+				}
+				// SteamID and IP based connect message
+				case 2: 
+				{
+					switch( Log )
+					{
+						case 0:	PrintToChatAll( "%t", "Connected_Auth_3", gName, gCity, gCountry, gAuth, gIp);
+						case 1:
+						{
+							PrintToChatAll( "%t", "Connected_Auth_3", gName, gCity, gCountry, gAuth, gIp);
+							WriteFileLine( File,"[%s] %s(%s ,%s)[ID: %s & IP: %s] connected", Time, gName, gCity, gCountry, gAuth, gIp);
+						}
+						case 2:	WriteFileLine( File,"[%s] %s(%s, %s)[ID: %s & IP: %s] connected", Time, gName, gCity, gCountry, gAuth, gIp);
+					}
 				}
 			}
 		}
@@ -326,6 +354,20 @@ public OnClientDisconnect( client )
 						case 2:	WriteFileLine( File,"[%s] %s(%s)[%s] disconnected", Time, gName, gCountry, gAuth );
 					}
 				}
+				// Disconnect messsage with city added to it
+				case 2: 
+				{
+					switch( Log )
+					{
+						case 0:	PrintToChatAll( "%t", "Disconnected_Auth_3", gName, gCity, gCountry, gAuth );
+						case 1:
+						{
+							PrintToChatAll( "%t", "Disconnected_Auth_2", gName, gCity, gCountry, gAuth );
+							WriteFileLine( File,"[%s] %s(%s, %s)[%s] disconnected", Time, gName, gCity, gCountry, gAuth );
+						}
+						case 2:	WriteFileLine( File,"[%s] %s(%s, %s)[%s] disconnected", Time, gName, gCity, gCountry, gAuth );
+					}
+				}
 			}	
 		}
 		case 2:
@@ -359,6 +401,20 @@ public OnClientDisconnect( client )
 							WriteFileLine( File,"[%s] %s(%s)[%s] disconnected", Time, gName, gCountry, gIp );
 						}
 						case 2:	WriteFileLine( File,"[%s] %s(%s)[%s] disconnected", Time, gName, gCountry, gIp );
+					}
+				}
+				// IP based disconnect message
+				case 2: 
+				{
+					switch( Log )
+					{
+						case 0:	PrintToChatAll( "%t", "Disconnected_Auth_3", gName, gCity, gCountry, gAuth );
+						case 1:
+						{
+							PrintToChatAll( "%t", "Disconnected_Auth_3", gName, gCity, gCountry, gAuth );
+							WriteFileLine( File,"[%s] %s(%s ,%s)[%s] disconnected", Time, gName, gCity, gCountry, gAuth );
+						}
+						case 2:	WriteFileLine( File,"[%s] %s(%s, %s)[%s] disconnected", Time, gName, gCity, gCountry, gAuth );
 					}
 				}
 			}	
@@ -395,6 +451,20 @@ public OnClientDisconnect( client )
 						}
 						case 2:	WriteFileLine( File,"[%s] %s(%s)[%s][%s] disconnected", Time, gName, gCountry, gAuth, gIp );
 					}						
+				}
+				// SteamID and IP based disconnect message
+				case 2: 
+				{
+					switch( Log )
+					{
+						case 0:	PrintToChatAll( "%t", "Disconnected_3", gName, gCity, gCountry, gAuth, gIp);
+						case 1:
+						{
+							PrintToChatAll( "%t", "Disconnected_3", gName, gCity, gCountry, gAuth, gIp);
+							WriteFileLine( File,"[%s] %s(%s ,%s)[ID: %s & IP: %s] disconnected", Time, gName, gCity, gCountry, gAuth, gIp);
+						}
+						case 2:	WriteFileLine( File,"[%s] %s(%s, %s)[ID: %s & IP: %s] disconnected", Time, gName, gCity, gCountry, gAuth, gIp);
+					}
 				}
 			}
 		}

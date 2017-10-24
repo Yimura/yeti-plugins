@@ -1,0 +1,107 @@
+//char 1 =   <-- this is used for yellow color which is normal chat color
+//char 4:  <-- this is used for green chat color
+"Phrases"
+{
+	"File Not Found"
+	{
+		"en"			"has not been found!, Creating new one..."
+	}
+	"Log Started"
+	{
+		"en"			"Log File Started"
+	}
+	"File Not Created"
+	{
+		"en"			"Logging is enabled but log file has not been found, please restart the map"
+	}
+	"Connected_Auth_1"
+	{
+		"#format"	"{1:s},{2:s}" // name, steamid
+		"en"		"{1}({2}) connected"
+	}
+	"Connected_Auth_2"
+	{
+		"#format"	"{1:s},{2:s},{3:s}" // name, country, steamid
+		"en"		"{1}({3}) connected from {2}"
+	}
+	"Connected_Auth_3"
+	{
+		"#format"	"{1:s},{2:s},{3:s},{4:s}" // name, city, country, steamid
+		"en"		"{1}({4}) connected from {2}, {3}"
+	}
+	"Connected_Ip_1"
+	{
+		"#format"	"{1:s},{2:s}" // name, ip
+		"en"		"{1}({2}) connected"
+	}
+	"Connected_Ip_2"
+	{
+		"#format"	"{1:s},{2:s},{3:s}" // name, country, ip
+		"en"		"{1}({3}) connected from {2}"
+	}
+	"Connected_Ip_3"
+	{
+		"#format"	"{1:s},{2:s},{3:s},{4:s}" // name, city, country, ip
+		"en"		"{1}({4}) connected from {2}, {3}"
+	}
+	"Connected_1"
+	{
+		"#format"	"{1:s},{2:s},{3:s}" // name, auth, ip
+		"en"		"{1}({2}) connected from {3}"
+	}
+	"Connected_2"
+	{
+		"#format"	"{1:s},{2:s},{3:s},{4:s}" // name, country, auth, ip
+		"en"		"{1}({3}) connected from {2}({4})"
+	}
+	"Connected_3"
+	{
+		"#format"	"{1:s},{2:s},{3:s},{4:s}{5:s}" // name, city, country, auth, ip
+		"en"		"{1} connected from {2}, {3} with ID: {4} and IP: {5}"
+	}
+	"Disconnected_Auth_1"
+	{
+		"#format"	"{1:s},{2:s}" // name, steamid
+		"en"		"{1}({2}) disconnected"
+	}
+	"Disconnected_Auth_2"
+	{
+		"#format"	"{1:s},{2:s},{3:s}" // name, country, steamid
+		"en"		"{1}({3}) disconnected from {2}"
+	}
+	"Disconnected_Auth_3"
+	{
+		"#format"	"{1:s},{2:s},{3:s}" // name, city, country, steamid
+		"en"		"{1}({4}) disconnected from {2}, {3}"
+	}
+	"Disconnected_Ip_1"
+	{
+		"#format"	"{1:s},{2:s}" // name, ip
+		"en"		"{1}({2}) disconnected"
+	}
+	"Disconnected_Ip_2"
+	{
+		"#format"	"{1:s},{2:s},{3:s}" // name, country, ip
+		"en"		"{1}({3}) disconnected from {2}"
+	}
+	"Disconnected_Ip_3"
+	{
+		"#format"	"{1:s},{2:s},{3:s}" // name, city, country, ip
+		"en"		"{1}({4}) disconnected from {2}, {3}"
+	}
+	"Disconnected_1"
+	{
+		"#format"	"{1:s},{2:s},{3:s}" // name, auth, ip
+		"en"		"{1}({2}) disconnected from {3}"
+	}
+	"Disconnected_2"
+	{
+		"#format"	"{1:s},{2:s},{3:s},{4:s}" // name, country, auth, ip
+		"en"		"{1}({3}) disconnected from {2}({4})"
+	}
+	"Disconnected_3"
+	{
+		"#format"	"{1:s},{2:s},{3:s},{4:s}{5:s}" // name, city, country, auth, ip
+		"en"		"{1} disconnected from {2}, {3} with ID: {4} and IP: {5}"
+	}
+}
