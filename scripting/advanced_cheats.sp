@@ -1,14 +1,6 @@
 #include <sourcemod>
 #include <sdktools>
 
-#undef REQUIRE_PLUGIN
-#include <updater>
-
-#define PLUGIN_VERSION "1.11.1"
-
-#define UPDATE_URL "http://yetimountain.top/.updater/advanced_cheats/acupdater.txt"
-
-
 /* When making this plugin everything went smooth but there was one thing I didn't think about
 Client-Side cheats oh noooes well the problem is upon connecting a client or your game recieves from the server that
 sv_cheats is disabled (which it is) so I tried making a code which switched sv_cheats on did the client command and switch it back off.
@@ -20,37 +12,19 @@ public Plugin:myinfo =
 	name = "Cheat commands",
 	author = "Yimura",
 	description = "Use cheat commands without sv_cheats 1",
-	version = PLUGIN_VERSION,
+	version = "1.11.2",
 	url = "http://yetimountain.top/"
 };
 public OnPluginStart()
 {
-	CreateConVar("sm_cheat_version", PLUGIN_VERSION, "Cheat commands version", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
+	CreateConVar("sm_cheat_version", "1.11.2", "Cheat commands version", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
 	
 	//g_hEnableClientSideCMDs = CreateConVar("sm_clientcheat", "0", "Enable Client-Side cheats (if you don't know what this means leave it disabled).");
 	
 	RegAdminCmd("sm_ch", Command_Cheat_Command, ADMFLAG_CHEATS, "Usage: sm_ch <addcond #/hurtme>");
 	//RegAdminCmd("sm_cc", Command_Client_Cheat, ADMFLAG_CHEATS, "Usage: sm_cc <impulse>")
 	
-	if (LibraryExists("updater"))
-	{
-		Updater_AddPlugin(UPDATE_URL);
-	}
-	
 	AutoExecConfig(true, "advanced_cheats");
-}
-
-public void OnLibraryAdded(const char[] libname)
-{
-	if(StrEqual(libname, "updater"))
-	{
-		Updater_AddPlugin(UPDATE_URL);
-	}
-}
-
-public int Updater_OnPluginUpdated()
-{
-	ReloadPlugin(GetMyHandle())
 }
 
 public Action:Command_Cheat_Command(client, args)
@@ -65,9 +39,6 @@ public Action:Command_Cheat_Command(client, args)
 	else
 	{
 		PerformCheatCommand(client, cmd);
-		decl String:clientname[64];
-		GetClientName(client, clientname, sizeof(clientname));
-		ShowActivity2(client, "[SM] %s used cheat %s.", clientname, cmd);
 		return Plugin_Handled;
 	}
 }

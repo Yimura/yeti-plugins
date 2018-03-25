@@ -104,6 +104,7 @@ bool g_mrc_applycolor_trail[MAXMULTICOLORHUD];
 bool g_mrc_use_light[MAXMULTICOLORHUD];
 
 //1v1 Mode
+bool g_b1v1Allow = false;
 bool g_1v1_allow;
 int g_1v1_lives;
 char g_1v1_beep_snd[PLATFORM_MAX_PATH];
@@ -176,8 +177,6 @@ public void OnPluginStart()
 	g_CommandToBlock = CreateTrie();
 	g_BlockOnlyOnPreparation = CreateTrie();
 	g_class_chance = CreateTrie();
-	
-	FindConVar("tf_arena_use_queue");
 	
 	//Server's Cvars
 	db_airdash = FindConVar("tf_scout_air_dash_count");
@@ -1005,6 +1004,13 @@ public Action OnPrepartionStart(Handle event, const char[] name, bool dontBroadc
 	
 	g_onPreparation = true;
 	
+	int clientCount = GetTeamClientCount(2) + GetTeamClientCount(3);
+	
+	if (clientCount <= 2)
+	{
+		g_b1v1Allow = true;
+	}
+	
 	//We force the cvars values needed every round (to override if any cvar was changed).
 	SetupCvars();
 
@@ -1045,7 +1051,7 @@ public Action OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 	
 	if(g_1v1_allow)
 	{
-		if( GetAlivePlayersCount(TEAM_BLUE,-1) == 1 && GetAlivePlayersCount(TEAM_RED,-1) == 1)
+		if(GetAlivePlayersCount(TEAM_BLUE,-1) == 1 && GetAlivePlayersCount(TEAM_RED,-1) == 1)
 		{
 			
 				Start1V1Mode();
@@ -1085,7 +1091,8 @@ public Action OnRoundEnd(Handle event, const char[] name, bool dontBroadcast)
 	{
 		return;
 	}
-	g_roundActive=false;
+	g_roundActive = false;
+	g_b1v1Allow = false;
 	for(int i = 0; i < g_max_rockets; i++)
 	{
 		int index = EntRefToEntIndex(g_RocketEnt[i].entity);
@@ -1396,7 +1403,7 @@ public Action Timer_Start1V1Mode(Handle timer, int data)
 
 public void Start1V1Mode()
 {
-	if(!g_isDBmap) 
+	if(!g_isDBmap || !g_b1v1Allow) 
 	{
 		return;
 	}
