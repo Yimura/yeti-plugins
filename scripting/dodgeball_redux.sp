@@ -1,5 +1,5 @@
 // ---- Preprocessor -----------------------------------------------------------
-#pragma semicolon 1 
+#pragma semicolon 1
 
 // ---- Includes ---------------------------------------------------------------
 #include <sourcemod>
@@ -80,7 +80,7 @@ Handle g_1v1_blue_beep;
 Handle g_HudSyncs[MAXHUDNUMBER];
 char g_mainfile[PLATFORM_MAX_PATH];
 char g_rocketclasses[PLATFORM_MAX_PATH];
-	
+
 
 // ---- Plugin's Configuration -------------------------------------------------
 float g_player_speed;
@@ -144,15 +144,37 @@ Handle db_burstammo;
 int db_airdash_def = 1;
 int db_push_def = 1;
 int db_burstammo_def = 1;
+int db_hintSnd_def = 1;
+
+// ---- Added by Yimura --------------------------------------------------------
+bool g_bAllow1v1 = true;
+int g_iPluginMode;
+
+float g_defaultRocketSpeed = 0.0;
+float g_fRandRSpeed;
+//float g_fRandRTurn;
+
+Handle db_hintSnd;
+Handle g_hHintTextTimer;
+Handle g_hConVarPluginMode;
+/*
+*	Important lines
+*	- 186
+*	- 2123
+*	- 3031
+*	Added by Yimura
+*	Keep in mind these can change due to code added
+*/
+
 
 // ---- Plugin's Information ---------------------------------------------------
 public Plugin myinfo =
 {
 	name = "[TF2] Dodgeball Redux",
-	author = "Classic",
+	author = "Yimura",
 	description = "Dodgeball plugin for TF2",
 	version = DB_VERSION,
-	url = "http://www.clangs.com.ar"
+	url = "https://ilysi.com"
 };
 
 /* OnPluginStart()
@@ -162,11 +184,11 @@ public Plugin myinfo =
 public void OnPluginStart()
 {
 	//Cvars
-	CreateConVar("sm_db_version", DB_VERSION, "Dogdeball Redux Version.", FCVAR_REPLICATED | FCVAR_PLUGIN | FCVAR_SPONLY | FCVAR_DONTRECORD | FCVAR_NOTIFY);
-	
+	CreateConVar("sm_db_version", DB_VERSION, "Dogdeball Redux Version.", FCVAR_REPLICATED | FCVAR_SPONLY | FCVAR_DONTRECORD | FCVAR_NOTIFY);
+	g_hConVarPluginMode = CreateConVar("sm_db_mode", "1", "Set the mode of dodgeball (0=normal, 1=every spawn random values, 2=random values only on round start, 3=Minigame [all modes in one])", FCVAR_NOTIFY);
 	//Commands
 	RegAdminCmd("sm_reloaddb", Command_ReloadConfig, ADMFLAG_ROOT ,"Reload the dodgeball's configs on round end.");
-	
+
 	//Creation of Tries
 	g_1v1_Music = CreateTrie();
 	g_SndRoundStart = CreateTrie();
@@ -177,11 +199,12 @@ public void OnPluginStart()
 	g_CommandToBlock = CreateTrie();
 	g_BlockOnlyOnPreparation = CreateTrie();
 	g_class_chance = CreateTrie();
-	
+
 	//Server's Cvars
 	db_airdash = FindConVar("tf_scout_air_dash_count");
 	db_push = FindConVar("tf_avoidteammates_pushaway");
 	db_burstammo = FindConVar("tf_flamethrower_burstammo");
+	db_hintSnd = FindConVar("sv_hudhint_sound");
 
 	//HUD
 	for(int i = 0; i < MAXHUDNUMBER; i++)
@@ -194,22 +217,25 @@ public void OnPluginStart()
 	{
 		g_RocketClass[i] = RocketClass(i);
 	}
-	
+
 	//Rocket entities
 	for(int i = 0; i < MAXROCKETS; ++i)
 	{
 		g_RocketEnt[i] = RocketEnt(i);
 	}
-		
+
 	//Hooks
 	HookEvent("teamplay_round_start", OnPrepartionStart);
-	HookEvent("arena_round_start", OnRoundStart); 
+	HookEvent("arena_round_start", OnRoundStart);
 	HookEvent("post_inventory_application", OnPlayerInventory);
 	HookEvent("player_spawn", OnPlayerSpawn);
 	HookEvent("player_death", OnPlayerDeath, EventHookMode_Post);
 	HookEvent("teamplay_round_win", OnRoundEnd);
 	HookEvent("teamplay_round_stalemate", OnRoundEnd);
-	
+
+	// Hook our convar if it changes we update it in the plugin
+	//HookConVarChange(g_hConVarPluginMode, dbModeChanged);
+
 	//Constant file paths
 	BuildPath(Path_SM, g_mainfile, PLATFORM_MAX_PATH, "configs/dodgeball_redux/dodgeball.cfg");
 	BuildPath(Path_SM, g_rocketclasses, PLATFORM_MAX_PATH, "configs/dodgeball_redux/rocketclasses.cfg");
@@ -231,13 +257,13 @@ public void OnMapStart()
 		g_reloadConfig = false;
 		Steam_SetGameDescription("Dodgeball Redux");
 		AddServerTag("dodgeball");
-		
+
 		LoadRocketClasses();
 		LoadConfigs();
-		
+
 		PrecacheFiles();
 		ProcessListeners(false);
-		
+
 		Handle cvar = FindConVar("tf_arena_use_queue");
 		SetConVarBool(cvar, false);
 	}
@@ -246,7 +272,7 @@ public void OnMapStart()
 		LogMessage("[DB] Current map is not a Dodgeball map. Disabling Dodgeball Gamemode.");
 		RemoveServerTag("dodgeball");
 		g_isDBmap = false;
-		Steam_SetGameDescription("Team Fortress");	
+		Steam_SetGameDescription("Team Fortress");
 	}
 }
 
@@ -273,8 +299,8 @@ public Action Command_ReloadConfig(client,args)
 	ReplyToCommand(client,"[DB] Dodgeball's configuration will be reloaded on the next round.");
 	return Plugin_Continue;
 }
-	
-	
+
+
 /* LoadRocketClasses()
 **
 ** Here we parse data/dodgeball/rocketclasses.cfg
@@ -334,7 +360,7 @@ void LoadRocketClasses()
 	defClass.maxbounce = kv.GetNum("MaxBounce",10);
 	defClass.bouncedelay = kv.GetFloat("BouceDelay",0.1);
 	defClass.bouncekeepdir = !!kv.GetNum("BounceKeepDirection",1);
-	
+
 	//Sounds
 
 	//Spawn
@@ -364,7 +390,7 @@ void LoadRocketClasses()
 	defClass.snd_aimed_use = !!kv.GetNum("PlayAimedSound",1);
 	kv.GetString("AimedSound",auxPath,PLATFORM_MAX_PATH,"");
 	defClass.SetSndAimed(auxPath);
-		
+
 	//Explosion
 	if(kv.JumpToKey("explosion"))
 	{
@@ -381,9 +407,9 @@ void LoadRocketClasses()
 	{
 		defClass.exp_use = false;
 	}
-		
+
 	kv.GoBack();
-	
+
 	//Here we read all the classes
 	if(!kv.JumpToKey("Classes"))
 	{
@@ -430,9 +456,9 @@ void LoadRocketClasses()
 		g_RocketClass[count].maxbounce = kv.GetNum("MaxBounce",defClass.maxbounce);
 		g_RocketClass[count].bouncedelay = kv.GetFloat("BouceDelay",defClass.bouncedelay);
 		g_RocketClass[count].bouncekeepdir = !!kv.GetNum("BounceKeepDirection",defClass.bouncekeepdir);
-		
+
 		//Sounds
-		
+
 		//Spawn
 		g_RocketClass[count].snd_spawn_use = !!kv.GetNum("PlaySpawnSound",defClass.snd_spawn_use);
 		defClass.GetSndSpawn(auxPath,PLATFORM_MAX_PATH);
@@ -467,7 +493,7 @@ void LoadRocketClasses()
 		defClass.GetSndAimed(auxPath,PLATFORM_MAX_PATH);
 		kv.GetString("AimedSound",auxPath,PLATFORM_MAX_PATH,auxPath);
 		g_RocketClass[count].SetSndAimed(auxPath);
-		
+
 		//Explosion
 		if(kv.JumpToKey("explosion"))
 		{
@@ -479,7 +505,7 @@ void LoadRocketClasses()
 			defClass.GetExpSound(auxPath,PLATFORM_MAX_PATH);
 			kv.GetString("Sound",auxPath,PLATFORM_MAX_PATH,auxPath);
 			g_RocketClass[count].SetExpSound(auxPath);
-			
+
 			kv.GoBack();
 		}
 		else
@@ -489,10 +515,10 @@ void LoadRocketClasses()
 		count++;
 	}
 	while (kv.GotoNextKey() && count < MAXROCKETCLASS);
-	
+
 	delete kv;
 	g_RocketClass_count = count;
-		
+
 }
 
 /* LoadConfigs()
@@ -513,7 +539,7 @@ void LoadConfigs()
 		SetFailState("Improper structure for configuration file %s!", g_mainfile);
 		return;
 	}
-	
+
 	//Here we clean the Tries
 	g_1v1_Music.Clear();
 	g_SndRoundStart.Clear();
@@ -524,7 +550,7 @@ void LoadConfigs()
 	g_CommandToBlock.Clear();
 	g_BlockOnlyOnPreparation.Clear();
 	g_class_chance.Clear();
-	
+
 	//Main configuration
 	g_player_speed = kv.GetFloat("PlayerSpeed", 300.0);
 	g_pyro_only = !!kv.GetNum("OnlyPyro",0);
@@ -536,7 +562,7 @@ void LoadConfigs()
 	kv.GetString("color",g_hud_color,32,"63 255 127");
 	kv.GetString("supershottext",g_hud_aimed_text,PLATFORM_MAX_PATH,"Super Shot!");
 	kv.GetString("supershotcolor",g_hud_aimed_color,32,"63 255 127");
-	
+
 	//Spawner limits and chances
 	if(kv.JumpToKey("spawner"))
 	{
@@ -555,12 +581,12 @@ void LoadConfigs()
 		}
 		kv.GoBack();
 	}
-	
+
 	//Multicolores Rockets
 	if(kv.JumpToKey("multirocketcolor"))
 	{
 		g_allow_multirocketcolor = !!kv.GetNum("AllowMultiRocketColor", 1);
-		
+
 		int count = 0;
 		kv.GotoFirstSubKey();
 		do
@@ -574,12 +600,12 @@ void LoadConfigs()
 			count++;
 		}
 		while (kv.GotoNextKey() && count < MAXMULTICOLORHUD);
-	
+
 		kv.GoBack();
 	}
-	
+
 	kv.Rewind();
-	
+
 	//1v1 Mode
 	if(kv.JumpToKey("1v1mode"))
 	{
@@ -591,7 +617,7 @@ void LoadConfigs()
 			g_1v1_beep_delay = kv.GetFloat("BeepDelay",1.5);
 			kv.GoBack();
 		}
-	
+
 		if(kv.JumpToKey("Music"))
 		{
 			char key[4], sndFile[PLATFORM_MAX_PATH];
@@ -608,7 +634,7 @@ void LoadConfigs()
 			kv.GoBack();
 		}
 	}
-	
+
 	kv.Rewind();
 	//Mod Sounds
 	if(kv.JumpToKey("sounds"))
@@ -666,15 +692,15 @@ void LoadConfigs()
 				if(StrEqual(sndFile, ""))
 				{
 					break;
-				}	
+				}
 				g_SndLastAlive.SetString(key,sndFile);
 			}
 			kv.GoBack();
 		}
-		kv.GoBack();		
+		kv.GoBack();
 	}
 	kv.Rewind();
-	
+
 	//Bloked Weapons
 	if(kv.JumpToKey("blockedflamethrowers"))
 	{
@@ -690,11 +716,11 @@ void LoadConfigs()
 			}
 			g_RestrictedWeps.SetValue(key,auxInt);
 		}
-		
-		kv.GoBack();	
+
+		kv.GoBack();
 	}
 	kv.Rewind();
-	
+
 	//Bloked Commands
 	if(kv.JumpToKey("blockcommands"))
 	{
@@ -704,10 +730,10 @@ void LoadConfigs()
 			int onprep;
 			kv.GotoFirstSubKey();
 			kv.GetSectionName( SectionName, sizeof(SectionName));
-			
+
 			kv.GetString("command", CommandName, sizeof(CommandName));
 			onprep = kv.GetNum("OnlyOnPreparation", 1);
-			
+
 			if(!StrEqual(CommandName, ""))
 			{
 				g_CommandToBlock.SetString(SectionName,CommandName);
@@ -715,16 +741,16 @@ void LoadConfigs()
 			}
 		}
 		while(kv.GotoNextKey());
-		kv.GoBack();	
+		kv.GoBack();
 	}
-	
+
 	delete kv;
-	
+
 	//Map's configuration
 	char mapfile[PLATFORM_MAX_PATH], mapname[128];
 	GetCurrentMap(mapname, sizeof(mapname));
 	BuildPath(Path_SM, mapfile, sizeof(mapfile), "configs/dodgeball_redux/maps/%s.cfg",mapname);
-	
+
 	if(FileExists(mapfile))
 	{
 		kv =  CreateKeyValues("dodgeball");
@@ -769,12 +795,12 @@ public void PrecacheFiles()
 	PrecacheSoundFromTrie(g_SndOnKill);
 	PrecacheSoundFromTrie(g_SndLastAlive);
 	//1v1 mode
-	if(!StrEqual(g_1v1_beep_snd,""))	
+	if(!StrEqual(g_1v1_beep_snd,""))
 	{
 		PrecacheSoundFile(g_1v1_beep_snd);
 	}
 	PrecacheSoundFromTrie(g_1v1_Music);
-	
+
 	//Multi-colored trails
 	for( int i = 0; i < MAXMULTICOLORHUD; i++)
 	{
@@ -783,7 +809,7 @@ public void PrecacheFiles()
 			PrecacheTrail(g_mrc_trail[i]);
 		}
 	}
-	
+
 	//Esplosion sounds
 	PrecacheParticle(PARTICLE_NUKE_1);
 	PrecacheParticle(PARTICLE_NUKE_2);
@@ -791,7 +817,7 @@ public void PrecacheFiles()
 	PrecacheParticle(PARTICLE_NUKE_4);
 	PrecacheParticle(PARTICLE_NUKE_5);
 	PrecacheParticle(PARTICLE_NUKE_COLLUMN);
-			
+
 	//Class' model,trail and sounds.
 	char auxPath[PLATFORM_MAX_PATH];
 	for( int i = 0; i < g_RocketClass_count; i++)
@@ -805,51 +831,51 @@ public void PrecacheFiles()
 		if(!StrEqual(auxPath,""))
 		{
 			PrecacheModelEx(auxPath,true,true);
-		}	
+		}
 		g_RocketClass[i].GetSndSpawn(auxPath,PLATFORM_MAX_PATH);
-		if(!StrEqual(auxPath,""))	
+		if(!StrEqual(auxPath,""))
 		{
 			PrecacheSoundFile(auxPath);
 		}
 		g_RocketClass[i].GetSndAlert(auxPath,PLATFORM_MAX_PATH);
-		if(!StrEqual(auxPath,""))	
+		if(!StrEqual(auxPath,""))
 		{
 			PrecacheSoundFile(auxPath);
 		}
 		g_RocketClass[i].GetSndDeflectBlue(auxPath,PLATFORM_MAX_PATH);
-		if(!StrEqual(auxPath,""))	
+		if(!StrEqual(auxPath,""))
 		{
 			PrecacheSoundFile(auxPath);
 		}
 		g_RocketClass[i].GetSndDeflectRed(auxPath,PLATFORM_MAX_PATH);
-		if(!StrEqual(auxPath,""))	
+		if(!StrEqual(auxPath,""))
 		{
 			PrecacheSoundFile(auxPath);
 		}
 		g_RocketClass[i].GetSndBeep(auxPath,PLATFORM_MAX_PATH);
-		if(!StrEqual(auxPath,""))	
+		if(!StrEqual(auxPath,""))
 		{
 			PrecacheSoundFile(auxPath);
 		}
 		g_RocketClass[i].GetSndAimed(auxPath,PLATFORM_MAX_PATH);
-		if(!StrEqual(auxPath,""))	
+		if(!StrEqual(auxPath,""))
 		{
 			PrecacheSoundFile(auxPath);
 		}
 		g_RocketClass[i].GetSndBounce(auxPath,PLATFORM_MAX_PATH);
-		if(!StrEqual(auxPath,""))	
+		if(!StrEqual(auxPath,""))
 		{
 			PrecacheSoundFile(auxPath);
 		}
 		g_RocketClass[i].GetExpSound(auxPath,PLATFORM_MAX_PATH);
-		if(!StrEqual(auxPath,""))	
+		if(!StrEqual(auxPath,""))
 		{
 			PrecacheSoundFile(auxPath);
 		}
 	}
-	
-		
-	
+
+
+
 }
 
 /* PrecacheSoundFromTrie()
@@ -913,19 +939,19 @@ stock PrecacheModelEx(String:strFileName[], bool:bPreload=false, bool:bAddToDown
 	{
 		char strDepFileName[PLATFORM_MAX_PATH];
 		Format(strDepFileName, sizeof(strDepFileName), "%s.res", strFileName);
-		
+
 		if (FileExists(strDepFileName))
 		{
 			// Open stream, if possible
 			Handle hStream = OpenFile(strDepFileName, "r");
 			if (hStream == INVALID_HANDLE) {LogMessage("Error, can't read file containing model dependencies."); return; }
-			
+
 			while(!IsEndOfFile(hStream))
 			{
 				char strBuffer[PLATFORM_MAX_PATH];
 				ReadFileLine(hStream, strBuffer, sizeof(strBuffer));
 				CleanString(strBuffer);
-				
+
 				// If file exists...
 				if (FileExists(strBuffer, true))
 				{
@@ -936,7 +962,7 @@ stock PrecacheModelEx(String:strFileName[], bool:bPreload=false, bool:bAddToDown
 					AddFileToDownloadsTable(strBuffer);
 				}
 			}
-			
+
 			// Close file
 			CloseHandle(hStream);
 		}
@@ -949,7 +975,7 @@ stock PrecacheModelEx(String:strFileName[], bool:bPreload=false, bool:bAddToDown
 ** -------------------------------------------------------------------------- */
 public void ProcessListeners(bool removeListerners)
 {
-	
+
 	char command[PLATFORM_MAX_PATH], key[4];
 	int PreparationOnly;
 	for(int i = 1; i <= g_CommandToBlock.Size; i++)
@@ -961,7 +987,7 @@ public void ProcessListeners(bool removeListerners)
 			{
 					break;
 			}
-					
+
 			GetTrieValue(g_BlockOnlyOnPreparation,key,PreparationOnly);
 			if(removeListerners)
 			{
@@ -985,8 +1011,8 @@ public void ProcessListeners(bool removeListerners)
 					AddCommandListener(Command_Block,command);
 				}
 			}
-			
-			
+
+
 		}
 	}
 }
@@ -997,20 +1023,20 @@ public void ProcessListeners(bool removeListerners)
 ** -------------------------------------------------------------------------- */
 public Action OnPrepartionStart(Handle event, const char[] name, bool dontBroadcast)
 {
-	if(!g_isDBmap) 
+	if(!g_isDBmap)
 	{
 		return;
 	}
-	
+
 	g_onPreparation = true;
-	
+
 	int clientCount = GetTeamClientCount(2) + GetTeamClientCount(3);
-	
+
 	if (clientCount <= 2)
 	{
 		g_b1v1Allow = true;
 	}
-	
+
 	//We force the cvars values needed every round (to override if any cvar was changed).
 	SetupCvars();
 
@@ -1019,10 +1045,10 @@ public Action OnPrepartionStart(Handle event, const char[] name, bool dontBroadc
 	{
 		if(IsValidAliveClient(i))
 		{
-			SetEntityMoveType(i, MOVETYPE_NONE);	
+			SetEntityMoveType(i, MOVETYPE_NONE);
 		}
 	}
-			
+
 	EmitRandomSound(g_SndRoundStart);
 }
 
@@ -1032,12 +1058,20 @@ public Action OnPrepartionStart(Handle event, const char[] name, bool dontBroadc
 ** -------------------------------------------------------------------------- */
 public Action OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 {
-	if(!g_isDBmap) 
+	if(!g_isDBmap)
 	{
 		return;
 	}
+
+	g_iPluginMode = GetConVarInt(g_hConVarPluginMode);
+	PrintToChatAll("Plugin Mode: %i", g_iPluginMode);
+	if (g_iPluginMode == 2) // Defined as only random values on round start (counts for all rockets)
+	{
+		g_fRandRSpeed = GetRandomFloat(750.0, 1500.0);
+	}
+
 	SearchSpawns();
-	RenderHud();
+	//RenderHud();
 	for(int i = 1; i <= MaxClients; i++)
 	{
 		if(IsValidAliveClient(i))
@@ -1048,16 +1082,25 @@ public Action OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 	g_onPreparation = false;
 	g_roundActive = true;
 	g_canSpawn = true;
-	
+
 	if(g_1v1_allow)
 	{
 		if(GetAlivePlayersCount(TEAM_BLUE,-1) == 1 && GetAlivePlayersCount(TEAM_RED,-1) == 1)
 		{
-			
-				Start1V1Mode();
+			Start1V1Mode();
 		}
 	}
-	
+
+	int playerStarted = GetTeamClientCount(TEAM_BLUE) + GetTeamClientCount(TEAM_RED);
+	if (playerStarted > 2)
+	{
+		g_bAllow1v1 = false;
+	}
+	else
+	{
+		g_bAllow1v1 = true;
+	}
+
 	//Rocket's limit
 	g_max_rockets_dynamic = g_max_rockets;
 	if(g_limit_rockets)
@@ -1068,14 +1111,14 @@ public Action OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 		{
 			g_max_rockets_dynamic = AliveCount;
 		}
-			
+
 		AliveCount = GetAlivePlayersCount(TEAM_BLUE,-1);
 		if(g_max_rockets_dynamic > AliveCount)
 		{
 			g_max_rockets_dynamic = AliveCount;
 		}
 	}
-	
+
 	g_lastSpawned = GetRandomInt(TEAM_RED,TEAM_BLUE);
 	FireRocket();
 
@@ -1087,7 +1130,7 @@ public Action OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 ** -------------------------------------------------------------------------- */
 public Action OnRoundEnd(Handle event, const char[] name, bool dontBroadcast)
 {
-	if(!g_isDBmap) 
+	if(!g_isDBmap)
 	{
 		return;
 	}
@@ -1101,7 +1144,7 @@ public Action OnRoundEnd(Handle event, const char[] name, bool dontBroadcast)
 			int dissolver = CreateEntityByName("env_entity_dissolver");
 
 			if (dissolver == -1)  return;
-			
+
 			DispatchKeyValue(dissolver, "dissolvetype", "3");
 			DispatchKeyValue(dissolver, "magnitude", "250");
 			DispatchKeyValue(dissolver, "target", "!activator");
@@ -1127,7 +1170,7 @@ public Action OnRoundEnd(Handle event, const char[] name, bool dontBroadcast)
 		{
 			char key[4],sndFile[PLATFORM_MAX_PATH];
 			IntToString(g_1v1_music_played,key,sizeof(key));
-		
+
 			if(GetTrieString(g_1v1_Music,key,sndFile,sizeof(sndFile)))
 			{
 				if(!StrEqual(sndFile, ""))
@@ -1140,12 +1183,12 @@ public Action OnRoundEnd(Handle event, const char[] name, bool dontBroadcast)
 						}
 					}
 				}
-			}  
+			}
 		}
 		g_1v1_music_played = -1;
 	}
 	ClearHud();
-	
+
 	if(g_reloadConfig)
 	{
 		LoadRocketClasses();
@@ -1153,7 +1196,7 @@ public Action OnRoundEnd(Handle event, const char[] name, bool dontBroadcast)
 		ProcessListeners(false);
 		g_reloadConfig = false;
 	}
-	
+
 }
 
 /* TF2Items_OnGiveNamedItem_Post()
@@ -1162,14 +1205,14 @@ public Action OnRoundEnd(Handle event, const char[] name, bool dontBroadcast)
 ** -------------------------------------------------------------------------- */
 public TF2Items_OnGiveNamedItem_Post(client, String:classname[], index, level, quality, ent)
 {
-	if(!g_isDBmap) 
+	if(!g_isDBmap)
 	{
 		return;
 	}
-	
+
 	if(StrEqual(classname,"tf_weapon_builder", false) || StrEqual(classname,"tf_wearable_demoshield", false))
 	{
-		CreateTimer(0.1, Timer_RemoveWep, EntIndexToEntRef(ent)); 
+		CreateTimer(0.1, Timer_RemoveWep, EntIndexToEntRef(ent));
 	}
 }
 
@@ -1184,7 +1227,7 @@ public Action Timer_RemoveWep(Handle timer, int ref)
 	{
 		AcceptEntityInput(ent, "Kill");
 	}
-}  
+}
 
 /* OnPlayerInventory()
 **
@@ -1193,25 +1236,25 @@ public Action Timer_RemoveWep(Handle timer, int ref)
 ** -------------------------------------------------------------------------- */
 public Action OnPlayerInventory(Handle event, const char[] name, bool dontBroadcast)
 {
-	if(!g_isDBmap) 
+	if(!g_isDBmap)
 	{
 		return;
 	}
-	
+
 	bool replace_primary = false;
-	int client = GetClientOfUserId(GetEventInt(event, "userid"));	
-	
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
+
 	TF2_RemoveWeaponSlot(client, TFWeaponSlot_Secondary);
 	TF2_RemoveWeaponSlot(client, TFWeaponSlot_Melee);
 	TF2_RemoveWeaponSlot(client, TFWeaponSlot_Grenade);
 	TF2_RemoveWeaponSlot(client, TFWeaponSlot_Building);
 	TF2_RemoveWeaponSlot(client, TFWeaponSlot_PDA);
-	
+
 	char classname[64];
 	int wep_ent = GetPlayerWeaponSlot(client, TFWeaponSlot_Primary);
 	if(wep_ent > MaxClients && IsValidEntity(wep_ent))
 	{
-		int wep_index = GetEntProp(wep_ent, Prop_Send, "m_iItemDefinitionIndex"); 
+		int wep_index = GetEntProp(wep_ent, Prop_Send, "m_iItemDefinitionIndex");
 		if (wep_ent > MaxClients && IsValidEdict(wep_ent) && GetEdictClassname(wep_ent, classname, sizeof(classname)))
 		{
 			if (StrEqual(classname, "tf_weapon_flamethrower", false) )
@@ -1254,9 +1297,9 @@ public Action OnPlayerInventory(Handle event, const char[] name, bool dontBroadc
 		CloseHandle(hItem);
 		EquipPlayerWeapon(client, iWeapon);
 	}
-	
+
 	TF2_SwitchtoSlot(client, TFWeaponSlot_Primary);
-	
+
 }
 
 /* OnPlayerSpawn()
@@ -1265,18 +1308,18 @@ public Action OnPlayerInventory(Handle event, const char[] name, bool dontBroadc
 ** -------------------------------------------------------------------------- */
 public Action OnPlayerSpawn(Handle event, const char[] name, bool dontBroadcast)
 {
-	if(!g_isDBmap) 
+	if(!g_isDBmap)
 	{
 		return;
 	}
-	
+
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	int class = GetEntProp(client, Prop_Send, "m_iClass");
 	if(g_pyro_only)
-	{		
+	{
 		if(!(class == CLASS_PYRO || class == 0 ))
 		{
-			SetEntProp(client, Prop_Send, "m_iDesiredPlayerClass", CLASS_PYRO);			
+			SetEntProp(client, Prop_Send, "m_iDesiredPlayerClass", CLASS_PYRO);
 			SetEntProp(client, Prop_Send, "m_iClass", CLASS_PYRO);
 			TF2_RespawnPlayer(client);
 		}
@@ -1302,7 +1345,7 @@ public Action OnPlayerSpawn(Handle event, const char[] name, bool dontBroadcast)
 ** -------------------------------------------------------------------------- */
 public Action:OnPlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	if(!g_isDBmap) 
+	if(!g_isDBmap)
 	{
 		return;
 	}
@@ -1310,11 +1353,11 @@ public Action:OnPlayerDeath(Handle:event, const String:name[], bool:dontBroadcas
 	{
 		return;
 	}
-	
+
 	//Victim
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	EmitRandomSound(g_SndOnDeath,client);
-	
+
 	//Killer
 	int killer = GetClientOfUserId(GetEventInt(event, "attacker"));
 	if(g_canEmitKillSound && client != killer && killer > 0)
@@ -1323,7 +1366,7 @@ public Action:OnPlayerDeath(Handle:event, const String:name[], bool:dontBroadcas
 		g_canEmitKillSound = false;
 		CreateTimer(g_OnKillDelay, ReenableKillSound);
 	}
-	
+
 	//Check for last one alive
 	int victimTeam = GetClientTeam(client);
 	int enemyteam;
@@ -1333,10 +1376,10 @@ public Action:OnPlayerDeath(Handle:event, const String:name[], bool:dontBroadcas
 	}
 	else
 	{
-		enemyteam = TEAM_RED;	
+		enemyteam = TEAM_RED;
 	}
 	int aliveTeammates = GetAlivePlayersCount(victimTeam,client);
-	
+
 	if(aliveTeammates == 0 && g_1v1_started)
 	{
 		LivesAnnotation(client, 0);
@@ -1354,21 +1397,21 @@ public Action:OnPlayerDeath(Handle:event, const String:name[], bool:dontBroadcas
 			}
 			else
 			{
-				aliveEnemies = GetAlivePlayersCount(TEAM_RED,-1);			
+				aliveEnemies = GetAlivePlayersCount(TEAM_RED,-1);
 			}
-			if(aliveEnemies == 1)
+			if(aliveEnemies == 1 && g_bAllow1v1)
 			{
 				CreateTimer(0.1,Timer_Start1V1Mode);
 			}
 		}
 	}
-	
-	
+
+
 	//Check if we need to crear a big boom
 	int iInflictor = GetEventInt(event, "inflictor_entindex");
 	int rIndex = GetRocketIndex(EntIndexToEntRef(iInflictor));
 	if(rIndex >= 0)
-	{	
+	{
 		int class = g_RocketEnt[rIndex].class;
 		if(g_RocketClass[class].exp_use)
 		{
@@ -1384,11 +1427,11 @@ public Action:OnPlayerDeath(Handle:event, const String:name[], bool:dontBroadcas
 			if(g_RocketEnt[g_max_rockets_dynamic].entity != INVALID_ENT_REFERENCE)
 			{
 				CreateTimer(0.1,Timer_MoveRocketSlot,g_max_rockets_dynamic);
-			}			
+			}
 			ClearHud();
 		}
 	}
-	 
+
 }
 
 public Action ReenableKillSound(Handle timer, int data)
@@ -1403,7 +1446,7 @@ public Action Timer_Start1V1Mode(Handle timer, int data)
 
 public void Start1V1Mode()
 {
-	if(!g_isDBmap || !g_b1v1Allow) 
+	if(!g_isDBmap || !g_b1v1Allow)
 	{
 		return;
 	}
@@ -1413,18 +1456,18 @@ public void Start1V1Mode()
 	}
 	g_1v1_started = true;
 	g_1v1_music_played = EmitRandomSound(g_1v1_Music,-1);
-	
+
 	g_1v1_red_life = g_1v1_lives;
 	g_1v1_blue_life = g_1v1_lives;
 	g_1v1_red_beep = null;
 	g_1v1_blue_beep =  null;
-	
+
 	SetHudTextParams(-1.0, 0.40,7.0,0,255,255,255, 1, 3.0, 1.5, 1.5);
 	for(int i = 1; i <= MaxClients; i++)
 	{
 		if(IsValidClient(i))
 		{
-			ShowSyncHudText(i, g_HudSyncs[MAXMULTICOLORHUD], "Battle between %N vs %N starts in 10 seconds!",GetLastPlayer(TEAM_RED),GetLastPlayer(TEAM_BLUE));
+			ShowSyncHudText(i, g_HudSyncs[MAXMULTICOLORHUD], "Battle between %N vs %N begins!",GetLastPlayer(TEAM_RED),GetLastPlayer(TEAM_BLUE));
 		}
 	}
 	LivesAnnotation(GetLastPlayer(TEAM_RED),g_1v1_red_life);
@@ -1437,7 +1480,7 @@ public void Start1V1Mode()
 			int dissolver = CreateEntityByName("env_entity_dissolver");
 
 			if (dissolver == -1)  return;
-			
+
 			DispatchKeyValue(dissolver, "dissolvetype", "3");
 			DispatchKeyValue(dissolver, "magnitude", "250");
 			DispatchKeyValue(dissolver, "target", "!activator");
@@ -1447,7 +1490,7 @@ public void Start1V1Mode()
 		}
 	}
 	g_canSpawn = false;
-	CreateTimer(5.0,AllowSpawn);
+	CreateTimer(1.0,AllowSpawn);
 }
 
 public OnClientPutInServer(client)
@@ -1458,7 +1501,7 @@ public OnClientPutInServer(client)
 
 public Action OnClientTakeDamage(client, &attacker, &inflictor, &Float:damage, &damagetype, &weapon, Float:damageForce[3], Float:damagePosition[3])
 {
-	if(!g_isDBmap) 
+	if(!g_isDBmap)
 	{
 		return Plugin_Continue;
 	}
@@ -1471,10 +1514,10 @@ public Action OnClientTakeDamage(client, &attacker, &inflictor, &Float:damage, &
 	{
 		return Plugin_Continue;
 	}
-	
+
 	int rIndex = GetRocketIndex(EntIndexToEntRef(inflictor));
 	if(rIndex >= 0)
-	{	
+	{
 		if(GetClientTeam(client) == TEAM_RED)
 		{
 			if(g_1v1_red_life == 0)
@@ -1514,13 +1557,13 @@ public Action OnClientTakeDamage(client, &attacker, &inflictor, &Float:damage, &
 			}
 		}
 	}
-	
+
 	return Plugin_Continue;
 }
 
 void LivesAnnotation(int client, int lives)
 {
-	
+
 	if(!IsValidAliveClient(client))
 	{
 		return;
@@ -1531,12 +1574,12 @@ void LivesAnnotation(int client, int lives)
 		{
 			if(IsValidClient(i) && i != client)
 			{
-				Handle event = CreateEvent("hide_annotation"); 
+				Handle event = CreateEvent("hide_annotation");
 				if(event == INVALID_HANDLE)
 				{
 					return;
 				}
-				SetEventInt(event, "id", MAXROCKETS + client * MAXPLAYERS + i); 
+				SetEventInt(event, "id", MAXROCKETS + client * MAXPLAYERS + i);
 				FireEvent(event);
 			}
 		}
@@ -1544,7 +1587,7 @@ void LivesAnnotation(int client, int lives)
 	}
 	else
 	{
-		
+
 		char livesString[MAX_NAME_LENGTH];
 		Format(livesString,MAX_NAME_LENGTH,"♥");
 		for(int i=2; i <= g_1v1_lives; i++)
@@ -1558,7 +1601,7 @@ void LivesAnnotation(int client, int lives)
 				Format(livesString,MAX_NAME_LENGTH,"%s -",livesString);
 			}
 		}
-		
+
 		for(int i = 1; i <= MaxClients; i++)
 		{
 			if(IsValidClient(i) && i != client)
@@ -1568,20 +1611,20 @@ void LivesAnnotation(int client, int lives)
 				{
 					continue;
 				}
-				SetEventInt(event, "follow_entindex", client);		
+				SetEventInt(event, "follow_entindex", client);
 				SetEventFloat(event, "lifetime", 9999.0);
 				SetEventInt(event, "id", MAXROCKETS + client * MAXPLAYERS + i);
 				SetEventString(event, "text", livesString);
 				SetEventString(event, "play_sound", "vo/null.mp3");
-				
+
 				SetEventInt(event, "visibilityBitfield", 1 << i);
 				SetEventBool(event,"show_effect", true);
 				FireEvent(event);
-		
+
 			}
 		}
-		
-		
+
+
 		SetHudTextParams(-1.0, 0.70,9999.0,255,0,0,255, 0, 0.0, 0.0, 0.0);
 		ShowSyncHudText(client, g_HudSyncs[MAXMULTICOLORHUD-1], "%s",livesString);
 	}
@@ -1593,7 +1636,7 @@ void LivesAnnotation(int client, int lives)
 ** -------------------------------------------------------------------------- */
 public Action LifeBeep(Handle timer, int data)
 {
-	if(!g_isDBmap) 
+	if(!g_isDBmap)
 	{
 		return Plugin_Stop;
 	}
@@ -1606,13 +1649,13 @@ public Action LifeBeep(Handle timer, int data)
 	{
 		return Plugin_Stop;
 	}
-	
+
 	int client = GetClientOfUserId(data);
 	if(!IsValidClient(client))
 	{
 		return Plugin_Stop;
 	}
-	
+
 	EmitSoundToClient(client,g_1v1_beep_snd,_,_, SNDLEVEL_TRAIN);
 	return Plugin_Continue;
 }
@@ -1625,7 +1668,7 @@ public Action LifeBeep(Handle timer, int data)
 ** -------------------------------------------------------------------------- */
 public void SearchSpawns()
 {
-	if(!g_isDBmap) 
+	if(!g_isDBmap)
 	{
 		return;
 	}
@@ -1634,7 +1677,7 @@ public void SearchSpawns()
 	g_BlueSpawn = -1;
 	while ((iEntity = FindEntityByClassname(iEntity, "info_target")) != -1)
 	{
-		char strName[32]; 
+		char strName[32];
 		GetEntPropString(iEntity, Prop_Data, "m_iName", strName, sizeof(strName));
 		if ((StrContains(strName, "rocket_spawn_red") != -1) || (StrContains(strName, "tf_dodgeball_red") != -1))
 		{
@@ -1645,23 +1688,23 @@ public void SearchSpawns()
 			g_BlueSpawn = EntIndexToEntRef(iEntity);
 		}
 	}
-	
+
 	if (g_RedSpawn == INVALID_ENT_REFERENCE)
 	{
 		SetFailState("No RED spawn points found on this map.");
 	}
-	
+
 	if (g_BlueSpawn == INVALID_ENT_REFERENCE)
 	{
 		SetFailState("No BLU spawn points found on this map.");
 	}
-	
-	
+
+
 	//ObserverPoint
-	
+
 	float opPos[3];
 	float opAng[3];
-	
+
 	int spawner = GetRandomInt(0,1);
 	if(spawner == 0)
 		spawner = EntRefToEntIndex(g_RedSpawn);
@@ -1695,8 +1738,8 @@ public void SearchSpawns()
 public int GetRandomRocketClass()
 {
 	int classChance[MAXROCKETS];
-	char className[MAX_NAME_LENGTH]; 
-	
+	char className[MAX_NAME_LENGTH];
+
 	//Here we get the probability of each rocket class
 	int maxNum = 0;
 	for(int i = 0; i < g_RocketClass_count; i++)
@@ -1711,9 +1754,9 @@ public int GetRandomRocketClass()
 			maxNum+=classChance[i];
 		}
 	}
-	
+
 	int random = GetRandomInt(1, maxNum);
-	
+
 	int upChance = 0, downChance = 1;
 	for(int i = 0; i < g_RocketClass_count; i++)
 	{
@@ -1723,7 +1766,7 @@ public int GetRandomRocketClass()
 		{
 			return i;
 		}
-		
+
 	}
 	return 0;
 }
@@ -1775,7 +1818,7 @@ public Action Timer_MoveRocketSlot(Handle timer, int oldSlot)
 	{
 		return;
 	}
-	
+
 	//If there isn't any slot available we just remove the rocket.
 	if(newSlot == -1)
 	{
@@ -1790,10 +1833,10 @@ public Action Timer_MoveRocketSlot(Handle timer, int oldSlot)
 			DispatchKeyValue(dissolver, "dissolvetype", "3");
 			DispatchKeyValue(dissolver, "magnitude", "250");
 			DispatchKeyValue(dissolver, "target", "!activator");
-		
+
 			AcceptEntityInput(dissolver, "Dissolve", index);
 			AcceptEntityInput(dissolver, "Kill");
-		}	
+		}
 	}
 	else
 	{
@@ -1812,13 +1855,13 @@ public Action Timer_MoveRocketSlot(Handle timer, int oldSlot)
 		float auxVec[3];
 		g_RocketEnt[oldSlot].GetDirection(auxVec);
 		g_RocketEnt[newSlot].SetDirection(auxVec);
-		
+
 		int class = g_RocketEnt[newSlot].class;
 		if(g_RocketClass[class].snd_beep_use)
 		{
 			g_RocketEnt[newSlot].beeptimer = CreateTimer(g_RocketClass[class].snd_beep_delay,RocketBeep,newSlot,TIMER_REPEAT);
 		}
-		
+
 		if(useMultiColor())
 		{
 			//model
@@ -1830,11 +1873,11 @@ public Action Timer_MoveRocketSlot(Handle timer, int oldSlot)
 			}
 			//trail
 			if(!StrEqual(g_mrc_trail[newSlot],""))
-			{ 
+			{
 				ent = -1;
 				while((ent = FindEntityByClassname(ent,"env_spritetrail")) != -1)
 				{
-					parent = GetEntPropEnt(ent, Prop_Data, "m_pParent"); 
+					parent = GetEntPropEnt(ent, Prop_Data, "m_pParent");
 					if(IsValidEntity(parent) && g_RocketEnt[newSlot].entity == EntIndexToEntRef(parent))
 					{
 						DispatchKeyValue(ent, "rendercolor", g_mrc_color[newSlot]);
@@ -1847,8 +1890,8 @@ public Action Timer_MoveRocketSlot(Handle timer, int oldSlot)
 				ent = -1;
 				while((ent = FindEntityByClassname(ent,"light_dynamic")) != -1)
 				{
-					
-					parent = GetEntPropEnt(ent, Prop_Data, "m_pParent");  
+
+					parent = GetEntPropEnt(ent, Prop_Data, "m_pParent");
 					if(IsValidEntity(parent) && g_RocketEnt[newSlot].entity == EntIndexToEntRef(parent))
 					{
 						DispatchKeyValue(ent, "_light", g_mrc_color[newSlot]);
@@ -1856,7 +1899,7 @@ public Action Timer_MoveRocketSlot(Handle timer, int oldSlot)
 				}
 			}
 		}
-		
+
 		g_RocketEnt[oldSlot].entity = INVALID_ENT_REFERENCE;
 		g_RocketEnt[oldSlot].class = -1;
 		g_RocketEnt[oldSlot].bounces = 0;
@@ -1873,9 +1916,9 @@ public Action Timer_MoveRocketSlot(Handle timer, int oldSlot)
 			CloseHandle(g_RocketEnt[oldSlot].beeptimer);
 		}
 		g_RocketEnt[oldSlot].beeptimer = null;
-	
+
 	}
-	
+
 }
 
 /* SearchTarget()
@@ -1884,7 +1927,7 @@ public Action Timer_MoveRocketSlot(Handle timer, int oldSlot)
 ** -------------------------------------------------------------------------- */
 public int SearchTarget(int rIndex)
 {
-	if(!g_isDBmap) 
+	if(!g_isDBmap)
 	{
 		return -1;
 	}
@@ -1892,16 +1935,16 @@ public int SearchTarget(int rIndex)
 	{
 		return -1;
 	}
-	
+
 	int index = g_RocketEnt[rIndex].entity;
 	if (index == INVALID_ENT_REFERENCE)
 	{
 		return -1;
 	}
-		
+
 	int rTeam = GetEntProp(index, Prop_Send, "m_iTeamNum", 1);
 	int class = g_RocketEnt[rIndex].class;
-	
+
 	//Check by aim
 	if(g_RocketClass[class].allowaimed)
 	{
@@ -1926,7 +1969,7 @@ public int SearchTarget(int rIndex)
 			clientTargeted[auxClient]++;
 		}
 	}
-	
+
 	//We make a list of possibles players
 	int possiblePlayers[MAXPLAYERS+1];
 	int possibleNumber = 0;
@@ -1939,7 +1982,7 @@ public int SearchTarget(int rIndex)
 		possiblePlayers[possibleNumber] = i;
 		possibleNumber++;
 	}
-	
+
 	//If there weren't any player the could be targeted the we try even with already aimed clients.
 	if(possibleNumber == 0)
 	{
@@ -1957,13 +2000,13 @@ public int SearchTarget(int rIndex)
 			return -1;
 		}
 	}
-	
+
 	//Random player
 	if(!g_RocketClass[class].targetclosest)
 	{
 		return possiblePlayers[ GetRandomInt(0,possibleNumber-1)];
 	}
-	
+
 	//We find the closest player in the valid players vector
 	else
 	{
@@ -1973,13 +2016,13 @@ public int SearchTarget(int rIndex)
 		//Rocket's position
 		float rPos[3];
 		GetEntPropVector(index, Prop_Send, "m_vecOrigin", rPos);
-		
+
 		//First player in the list will be the current closest player
 		int closest = possiblePlayers[0];
 		GetClientAbsOrigin(closest,aux_pos);
 		float closest_dist = GetVectorDistance(rPos,aux_pos, true);
-		
-		
+
+
 		for(int i = 1; i < possibleNumber; i++)
 		{
 			//We use the squared option for optimization since we don't need the absolute distance.
@@ -1993,7 +2036,7 @@ public int SearchTarget(int rIndex)
 		}
 		return closest;
 	}
-	
+
 
 }
 
@@ -2022,7 +2065,7 @@ public Action AllowSpawn(Handle timer, int data)
 ** -------------------------------------------------------------------------- */
 public void FireRocket()
 {
-	if(!g_isDBmap) 
+	if(!g_isDBmap)
 	{
 		return;
 	}
@@ -2038,10 +2081,10 @@ public void FireRocket()
 	{
 		return;
 	}
-	
+
 	int rIndex = GetRocketSlot();
 	if(rIndex == -1) return;
-	
+
 	int spawner, rocketTeam;
 	if(g_lastSpawned == TEAM_RED)
 	{
@@ -2053,7 +2096,7 @@ public void FireRocket()
 		rocketTeam = TEAM_RED;
 		spawner = g_RedSpawn;
 	}
-	
+
 	int iEntity = CreateEntityByName( "tf_projectile_rocket");
 	if(iEntity && IsValidEntity(iEntity))
 	{
@@ -2064,47 +2107,49 @@ public void FireRocket()
 		g_RocketEnt[rIndex].aimed = false;
 		g_RocketEnt[rIndex].deflects = 0;
 		g_RocketEnt[rIndex].speed = 0.0;
-		g_RocketEnt[rIndex].homing = true;		
+		g_RocketEnt[rIndex].homing = true;
 		g_RocketEnt[rIndex].keepdir = false;
 		g_RocketEnt[rIndex].annotation = false;
 		g_RocketEnt[rIndex].beeptimer = null;
-		
-		
+
+
 		// Fetch spawn point's location and angles.
 		float fPosition[3], fAngles[3], fDirection[3], fVelocity[3];
 		GetEntPropVector(spawner, Prop_Send, "m_vecOrigin", fPosition);
 		GetEntPropVector(spawner, Prop_Send, "m_angRotation", fAngles);
 		GetAngleVectors(fAngles, fDirection, NULL_VECTOR, NULL_VECTOR);
 		g_RocketEnt[rIndex].SetDirection(fDirection);
-		
+
 		// Setup rocket entity.
 		SetEntPropEnt(iEntity, Prop_Send, "m_hOwnerEntity", 0);
 		SetEntProp(iEntity,	Prop_Send, "m_bCritical",	 1);
-		SetEntProp(iEntity,	Prop_Send, "m_iTeamNum",	 rocketTeam, 1); 
+		SetEntProp(iEntity,	Prop_Send, "m_iTeamNum",	 rocketTeam, 1);
 		SetEntProp(iEntity,	Prop_Send, "m_iDeflected",   1);
-		
+
 		float aux_mul = g_RocketClass[class].speed;
+		// Around here we should change the values
+
 		g_RocketEnt[rIndex].speed = aux_mul;
 		fVelocity[0] = fDirection[0]*aux_mul;
 		fVelocity[1] = fDirection[1]*aux_mul;
 		fVelocity[2] = fDirection[2]*aux_mul;
 		TeleportEntity(iEntity, fPosition, fAngles, fVelocity);
-		
-		SetEntDataFloat(iEntity, FindSendPropOffs("CTFProjectile_Rocket", "m_iDeflected") + 4, g_RocketClass[class].damage, true);
+
+		SetEntDataFloat(iEntity, FindSendPropInfo("CTFProjectile_Rocket", "m_iDeflected") + 4, g_RocketClass[class].damage, true);
 		DispatchSpawn(iEntity);
-		
+
 		char auxPath[PLATFORM_MAX_PATH];
 		g_RocketClass[class].GetModel(auxPath,PLATFORM_MAX_PATH);
 		if(!StrEqual(auxPath,""))
 		{
 			SetEntityModel(iEntity, auxPath);
 		}
-		
+
 		if(g_RocketClass[class].size > 0.0)
 		{
 			SetEntPropFloat(iEntity, Prop_Send, "m_flModelScale", g_RocketClass[class].size);
 		}
-			
+
 		if(useMultiColor())
 		{
 			if(!StrEqual(g_mrc_trail[rIndex],""))
@@ -2120,7 +2165,7 @@ public void FireRocket()
 				AttachLight(rIndex);
 			}
 		}
-		else 
+		else
 		{
 			g_RocketClass[class].GetTrail(auxPath,PLATFORM_MAX_PATH);
 			if(!StrEqual(auxPath,""))
@@ -2129,19 +2174,19 @@ public void FireRocket()
 			}
 		}
 
-		
+
 		SDKHook(iEntity, SDKHook_StartTouch, OnStartTouch);
-		
+
 		g_RocketEnt[rIndex].owner = 0;
 		g_RocketEnt[rIndex].target = SearchTarget(rIndex);
-		
+
 		if( !IsValidAliveClient(g_RocketEnt[rIndex].target ))
 		{
 			AcceptEntityInput(iEntity, "Kill");
 			g_RocketEnt[rIndex].entity = -1;
 			return;
 		}
-		
+
 		if(g_annotation_show)
 		{
 			CreateTimer(0.1,Timer_ShowAnnotation,rIndex);
@@ -2152,7 +2197,7 @@ public void FireRocket()
 		{
 			g_RocketEnt[rIndex].beeptimer = CreateTimer(g_RocketClass[class].snd_beep_delay,RocketBeep,rIndex,TIMER_REPEAT);
 		}
-		
+
 		//Observer point
 		if(g_observer != INVALID_ENT_REFERENCE && g_observer_slot == -1)
 		{
@@ -2161,12 +2206,19 @@ public void FireRocket()
 			AcceptEntityInput(g_observer, "SetParent", g_RocketEnt[rIndex].entity);
 			g_observer_slot = rIndex;
 		}
-		
+
 		g_lastSpawned = rocketTeam;
 		g_canSpawn = false;
-		RenderHud();
+		//RenderHud();
+
+		if(g_hHintTextTimer != INVALID_HANDLE)
+		{
+			// Kill our hinttext timer to prevent multiple running
+			KillTimer(g_hHintTextTimer);
+		}
+		// Start new timer to update the rocket speed
+		g_hHintTextTimer = CreateTimer(0.3, ShowHintText, rIndex, TIMER_REPEAT);
 		CreateTimer(g_spawn_delay,AllowSpawn);
-		
 	}
 }
 
@@ -2177,14 +2229,14 @@ public void AttachTrail(int rIndex)
 	{
 		return;
 	}
-	
+
 	int trail = CreateEntityByName("env_spritetrail");
 	int colornum = -1;
 	if(useMultiColor())
 	{
 		colornum = rIndex;
 	}
-	if (!IsValidEntity(trail)) 
+	if (!IsValidEntity(trail))
 	{
 		return;
 	}
@@ -2196,9 +2248,9 @@ public void AttachTrail(int rIndex)
 	DispatchKeyValueFloat(trail, "lifetime", 1.0);
 	DispatchKeyValueFloat(trail, "endwidth", 15.0);
 	DispatchKeyValueFloat(trail, "startwidth", 6.0);
-	
+
 	char trailMaterial[PLATFORM_MAX_PATH];
-	
+
 	//We check if we should use the multicolored trail or the class one.
 	if(colornum >= 0 && colornum < MAXMULTICOLORHUD)
 	{
@@ -2214,11 +2266,11 @@ public void AttachTrail(int rIndex)
 		Format(trailMaterial,PLATFORM_MAX_PATH,"%s.vmt",trailMaterial);
 		DispatchKeyValue(trail, "rendercolor", "255 255 255 255");
 	}
-	
+
 	DispatchKeyValue(trail, "spritename", trailMaterial);
 	DispatchKeyValue(trail, "renderamt", "255");
 
-	
+
 	DispatchKeyValue(trail, "rendermode", "3");
 	DispatchSpawn(trail);
 
@@ -2228,7 +2280,7 @@ public void AttachTrail(int rIndex)
 	TeleportEntity(trail, vec, NULL_VECTOR, NULL_VECTOR);
 
 	SetVariantString(strTargetName);
-	AcceptEntityInput(trail, "SetParent"); 
+	AcceptEntityInput(trail, "SetParent");
 	SetEntPropFloat(trail, Prop_Send, "m_flTextureRes", 0.05);
 	return;
 }
@@ -2240,7 +2292,7 @@ public void AttachLight(int rIndex)
 	{
 		return;
 	}
-	
+
 	int colornum = -1;
 	if(!useMultiColor())
 	{
@@ -2259,23 +2311,23 @@ public void AttachLight(int rIndex)
 		DispatchKeyValue(iLightEntity, "pitch", "-90");
 		DispatchKeyValue(iLightEntity, "style", "5");
 		DispatchSpawn(iLightEntity);
-		
+
 		float fOrigin[3];
 		GetEntPropVector(index, Prop_Data, "m_vecOrigin", fOrigin);
-		
+
 		fOrigin[2] += 40.0;
 		TeleportEntity(iLightEntity, fOrigin, NULL_VECTOR, NULL_VECTOR);
 
 		char strName[32];
 		Format(strName, sizeof(strName), "target%i", index);
 		DispatchKeyValue(index, "targetname", strName);
-				
+
 		DispatchKeyValue(iLightEntity, "parentname", strName);
 		SetVariantString("!activator");
 		AcceptEntityInput(iLightEntity, "SetParent", index, iLightEntity, 0);
 		AcceptEntityInput(iLightEntity, "TurnOn");
-	}	
-	
+	}
+
 }
 
 /* RocketBeep()
@@ -2294,14 +2346,14 @@ public Action OnStartTouch(int entity, int other)
 	{
 		return Plugin_Continue;
 	}
-		
-	int ref = EntIndexToEntRef(entity);	
+
+	int ref = EntIndexToEntRef(entity);
 	int rIndex = GetRocketIndex(ref);
 	if(rIndex == -1)
 		return Plugin_Continue;
-	
-	int class = g_RocketEnt[rIndex].class;	
-	
+
+	int class = g_RocketEnt[rIndex].class;
+
 	//We check the bounce counter
 	if (g_RocketEnt[rIndex].bounces >= g_RocketClass[class].maxbounce)
 	{
@@ -2311,57 +2363,57 @@ public Action OnStartTouch(int entity, int other)
 		}
 		return Plugin_Continue;
 	}
-	
+
 	SDKHook(entity, SDKHook_Touch, OnTouch);
 	return Plugin_Handled;
 }
 
 public Action OnTouch(int entity, int other)
 {
-		
+
 	float vOrigin[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecOrigin", vOrigin);
-	
+
 	float vAngles[3];
 	GetEntPropVector(entity, Prop_Data, "m_angRotation", vAngles);
-	
+
 	float vVelocity[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsVelocity", vVelocity);
-	
+
 	Handle trace = TR_TraceRayFilterEx(vOrigin, vAngles, MASK_SHOT, RayType_Infinite, TEF_ExcludeEntity, entity);
-	
+
 	if(!TR_DidHit(trace))
 	{
 		CloseHandle(trace);
 		return Plugin_Continue;
 	}
-	
+
 	float vNormal[3];
 	TR_GetPlaneNormal(trace, vNormal);
-	
+
 	CloseHandle(trace);
-	
+
 	float dotProduct = GetVectorDotProduct(vNormal, vVelocity);
-	
+
 	ScaleVector(vNormal, dotProduct);
 	ScaleVector(vNormal, 2.0);
-	
+
 	float vBounceVec[3];
 	SubtractVectors(vVelocity, vNormal, vBounceVec);
-	
+
 	float vNewAngles[3];
 	GetVectorAngles(vBounceVec, vNewAngles);
-	
+
 	TeleportEntity(entity, NULL_VECTOR, vNewAngles, vBounceVec);
 
-	
-	int ref = EntIndexToEntRef(entity);	
+
+	int ref = EntIndexToEntRef(entity);
 	int rIndex = GetRocketIndex(ref);
 	if(rIndex == -1)
 	{
 		return Plugin_Continue;
 	}
-	int class = g_RocketEnt[rIndex].class;	
+	int class = g_RocketEnt[rIndex].class;
 	g_RocketEnt[rIndex].bounces++;
 	g_RocketEnt[rIndex].homing = false;
 	CreateTimer(g_RocketClass[class].bouncedelay,EnableHoming,rIndex);
@@ -2376,9 +2428,9 @@ public Action OnTouch(int entity, int other)
 		GetAngleVectors(vNewAngles,fDirection,NULL_VECTOR,NULL_VECTOR);
 		g_RocketEnt[rIndex].SetDirection(fDirection);
 	}
-	
+
 	EmitSoundAllDB(rsnd_bounce,rIndex,true);
-	
+
 	SDKUnhook(entity, SDKHook_Touch, OnTouch);
 	return Plugin_Handled;
 }
@@ -2395,12 +2447,12 @@ public bool TEF_ExcludeEntity(int entity, int contentsMask, int data)
 ** -------------------------------------------------------------------------- */
 public void OnGameFrame()
 {
-	if(!g_isDBmap) 
+	if(!g_isDBmap)
 	{
 		return;
 	}
 	if(!g_roundActive)
-	{	
+	{
 		return;
 	}
 	//We control everybody's speed
@@ -2415,7 +2467,7 @@ public void OnGameFrame()
 			}
 		}
 	}
-	
+
 	//Rocket Management
 	for(int i = 0; i < MAXROCKETS; i++)
 	{
@@ -2453,7 +2505,7 @@ public void OnGameFrame()
 			float fAngles[3], fDirection[3];
 			GetClientEyeAngles(g_RocketEnt[i].target, fAngles);
 			GetAngleVectors(fAngles, fDirection, NULL_VECTOR, NULL_VECTOR);
-			
+
 			fDirection[2]+= g_RocketClass[class].elevaterate;
 			if(fDirection[2] > g_RocketClass[class].elevatemax)
 			{
@@ -2466,7 +2518,7 @@ public void OnGameFrame()
 			GetVectorAngles(fDirection,fAngles);
 			SetEntPropVector(index, Prop_Send, "m_angRotation", fAngles);
 			g_RocketEnt[i].SetDirection(fDirection);
-			
+
 			g_RocketEnt[i].target = SearchTarget(i);
 			g_RocketEnt[i].deflects++;
 			g_RocketEnt[i].bounces = 0;
@@ -2501,7 +2553,7 @@ public void OnGameFrame()
 				ShowSyncHudText(g_RocketEnt[i].owner, g_HudSyncs[MAXHUDNUMBER-1], "%s",g_hud_aimed_text);
 			}
 			CreateTimer(g_RocketClass[class].deflectdelay,EnableHoming,i);
-			RenderHud();
+			//RenderHud();
 		}
 		//If isn't a deflect then we have to modify the rocket's direction and velocity
 		else
@@ -2512,11 +2564,11 @@ public void OnGameFrame()
 				{
 					float fDirectionToTarget[3], rocketDirection[3];
 					g_RocketEnt[i].GetDirection(rocketDirection);
-					
+
 					CalculateDirectionToClient(index, g_RocketEnt[i].target, fDirectionToTarget);
 					float turnrate = g_RocketClass[class].turnrate + g_RocketClass[class].turnrateinc * g_RocketEnt[i].deflects;
 					LerpVectors(rocketDirection, fDirectionToTarget, rocketDirection, turnrate);
-					
+
 					g_RocketEnt[i].SetDirection(rocketDirection);
 				}
 			}
@@ -2531,14 +2583,14 @@ public void OnGameFrame()
 				}
 			}
 		}
-		
+
 		if(!g_RocketEnt[i].keepdir)
 		{
 			float rocketDirection[3];
 			g_RocketEnt[i].GetDirection(rocketDirection);
 			float fAngles[3]; GetVectorAngles(rocketDirection, fAngles);
 			float fVelocity[3]; CopyVectors(rocketDirection, fVelocity);
-			
+
 			if(aux_mul == 0.0)
 			{
 				aux_mul = g_RocketClass[class].speed + g_RocketClass[class].speedinc * g_RocketEnt[i].deflects;
@@ -2547,10 +2599,10 @@ public void OnGameFrame()
 			{
 				aux_mul *= g_RocketClass[class].aimedspeed;
 			}
-			
+
 			float damage = g_RocketClass[class].damage + g_RocketClass[class].damageinc * g_RocketEnt[i].deflects;
-			SetEntDataFloat(index, FindSendPropOffs("CTFProjectile_Rocket", "m_iDeflected") + 4, damage, true);	
-			
+			SetEntDataFloat(index, FindSendPropInfo("CTFProjectile_Rocket", "m_iDeflected") + 4, damage, true);
+
 			if(g_RocketClass[class].size > 0.0 && g_RocketClass[class].sizeinc > 0.0)
 			{
 				float size = g_RocketClass[class].size + g_RocketClass[class].sizeinc * g_RocketEnt[i].deflects;
@@ -2563,7 +2615,6 @@ public void OnGameFrame()
 			SetEntPropVector(index, Prop_Data, "m_vecAbsVelocity", fVelocity);
 			SetEntPropVector(index, Prop_Send, "m_angRotation", fAngles);
 		}
-		
 	}
 }
 
@@ -2578,7 +2629,7 @@ public Action EnableHoming(Handle timer, int rIndex)
 
 /* DisableKeepDirection()
 **
-** Timer used to disable the keep direction state. 
+** Timer used to disable the keep direction state.
 ** -------------------------------------------------------------------------- */
 public Action DisableKeepDirection(Handle timer, int rIndex)
 {
@@ -2587,7 +2638,7 @@ public Action DisableKeepDirection(Handle timer, int rIndex)
 
 public OnEntityCreated(entity, const String:classname[])
 {
-	if(!g_isDBmap) 
+	if(!g_isDBmap)
 	{
 		return;
 	}
@@ -2595,7 +2646,7 @@ public OnEntityCreated(entity, const String:classname[])
 	{
 		return;
 	}
-	
+
 	int dissolver = CreateEntityByName("env_entity_dissolver");
 
 	if (dissolver == -1)
@@ -2618,7 +2669,7 @@ public OnEntityCreated(entity, const String:classname[])
 ** -------------------------------------------------------------------------- */
 public OnEntityDestroyed(entity)
 {
-	if(!g_isDBmap) 
+	if(!g_isDBmap)
 	{
 		return;
 	}
@@ -2637,7 +2688,7 @@ public OnEntityDestroyed(entity)
 	{
 		return;
 	}
-	
+
 	g_RocketEnt[rIndex].entity = INVALID_ENT_REFERENCE;
 	g_RocketEnt[rIndex].target = -1;
 	g_RocketEnt[rIndex].owner = -1;
@@ -2658,28 +2709,27 @@ public OnEntityDestroyed(entity)
 	{
 		HideAnnotation(rIndex);
 	}
-	RenderHud();
+	//RenderHud();
 	if(g_roundActive)
 	{
 		CreateTimer(g_spawn_delay, TryFireRocket);
-
 	}
-	
+
 	if(g_observer != -1 && g_observer_slot == rIndex)
 	{
 		int entObs = EntRefToEntIndex(g_observer);
 		SetVariantString("");
 		AcceptEntityInput(entObs, "ClearParent");
-		
+
 		float opPos[3];
 		float opAng[3];
-		
+
 		int spawner = GetRandomInt(0,1);
 		if(spawner == 0)
 			spawner = g_RedSpawn;
 		else
 			spawner = g_BlueSpawn;
-		
+
 		if(spawner != INVALID_ENT_REFERENCE)
 		{
 			GetEntPropVector(spawner,Prop_Data,"m_vecOrigin",opPos);
@@ -2688,7 +2738,7 @@ public OnEntityDestroyed(entity)
 		}
 		g_observer_slot = -1;
 	}
-	
+
 }
 
 /* CmdShockwave()
@@ -2703,7 +2753,7 @@ public CreateExplosion(rIndex)
 		return;
 	}
 	int class = g_RocketEnt[rIndex].class;
-	float fPosition[3]; 
+	float fPosition[3];
 	int index = EntRefToEntIndex(g_RocketEnt[rIndex].entity);
 	if (index == INVALID_ENT_REFERENCE)
 	{
@@ -2711,7 +2761,7 @@ public CreateExplosion(rIndex)
 	}
 	int	iTeam = GetEntProp(index, Prop_Send, "m_iTeamNum", 1);
 	GetEntPropVector(index, Prop_Data, "m_vecOrigin", fPosition);
-		
+
 	switch (GetRandomInt(0, 4))
 	{
 		case 0: { PlayParticle(fPosition, PARTICLE_NUKE_1_ANGLES, PARTICLE_NUKE_1); }
@@ -2721,15 +2771,15 @@ public CreateExplosion(rIndex)
 		case 4: { PlayParticle(fPosition, PARTICLE_NUKE_5_ANGLES, PARTICLE_NUKE_5); }
 	}
 	PlayParticle(fPosition, PARTICLE_NUKE_COLLUMN_ANGLES, PARTICLE_NUKE_COLLUMN);
-		
+
 	for (int iClient = 1; iClient <= MaxClients; iClient++)
 	{
 		if(IsValidAliveClient(iClient) && GetClientTeam(iClient) != iTeam)
 		{
-			float fPlayerPosition[3]; 
+			float fPlayerPosition[3];
 			GetClientEyePosition(iClient, fPlayerPosition);
 			float fDistanceToShockwave = GetVectorDistance(fPosition, fPlayerPosition);
-			
+
 			if (fDistanceToShockwave < g_RocketClass[class].exp_radius)
 			{
 				float fImpulse[3], fFinalPush;
@@ -2738,12 +2788,12 @@ public CreateExplosion(rIndex)
 				fImpulse[1] = fPlayerPosition[1] - fPosition[1];
 				fImpulse[2] = fPlayerPosition[2] - fPosition[2];
 				NormalizeVector(fImpulse, fImpulse);
-				if (fImpulse[2] < 0.4) 
-				{ 
-					fImpulse[2] = 0.4; 
-					NormalizeVector(fImpulse, fImpulse); 
+				if (fImpulse[2] < 0.4)
+				{
+					fImpulse[2] = 0.4;
+					NormalizeVector(fImpulse, fImpulse);
 				}
-				
+
 				if (fDistanceToShockwave < g_RocketClass[class].exp_fallof)
 				{
 					fFinalPush = g_RocketClass[class].exp_push;
@@ -2757,7 +2807,7 @@ public CreateExplosion(rIndex)
 				}
 				ScaleVector(fImpulse, fFinalPush);
 				SetEntPropVector(iClient, Prop_Data, "m_vecAbsVelocity", fImpulse);
-				
+
 				Handle hDamage = CreateDataPack();
 				WritePackCell(hDamage, iClient);
 				WritePackCell(hDamage, iFinalDamage);
@@ -2765,7 +2815,7 @@ public CreateExplosion(rIndex)
 			}
 		}
 	}
-	
+
 	EmitSoundAllDB(rsnd_exp,rIndex,false);
 }
 /* ApplyDamage()
@@ -2802,7 +2852,7 @@ stock PlayParticle(Float:fPosition[3], Float:fAngles[3], String:strParticleName[
     else
     {
         LogError("ShowParticle: could not create info_particle_system");
-    }    
+    }
 }
 /* StopParticle()
 **
@@ -2853,7 +2903,7 @@ public Action Timer_ShowAnnotation(Handle timer, int rIndex)
 {
 	if(g_1v1_started)
 	{
-		return;	
+		return;
 	}
 	int index = EntRefToEntIndex(g_RocketEnt[rIndex].entity);
 	if (index == INVALID_ENT_REFERENCE)
@@ -2866,7 +2916,7 @@ public Action Timer_ShowAnnotation(Handle timer, int rIndex)
 		return;
 	}
 	float clientPos[3], rocketPos[3];
-	
+
 	GetClientAbsOrigin(client, clientPos);
 	GetEntPropVector(index, Prop_Send, "m_vecOrigin", rocketPos);
 	if(GetVectorDistance(clientPos,rocketPos) < g_annotation_distance)
@@ -2878,7 +2928,7 @@ public Action Timer_ShowAnnotation(Handle timer, int rIndex)
 	{
 		return;
 	}
-	SetEventInt(event, "follow_entindex", index);		
+	SetEventInt(event, "follow_entindex", index);
 	SetEventFloat(event, "lifetime", 9999.0);
 	SetEventInt(event, "id", rIndex);
 	char rocketName[MAX_NAME_LENGTH], auxString[MAX_NAME_LENGTH];
@@ -2906,13 +2956,13 @@ public Action Timer_ShowAnnotation(Handle timer, int rIndex)
 ** -------------------------------------------------------------------------- */
 public void HideAnnotation(int rIndex)
 {
-	Handle event = CreateEvent("hide_annotation"); 
+	Handle event = CreateEvent("hide_annotation");
 	if(event == INVALID_HANDLE)
 	{
 		return;
 	}
-	SetEventInt(event, "id", rIndex); 
-	FireEvent(event); 
+	SetEventInt(event, "id", rIndex);
+	FireEvent(event);
 	g_RocketEnt[rIndex].annotation = false;
 }
 /* ClearHud()
@@ -2952,9 +3002,9 @@ public void RenderHud()
 		{
 			GetIntColor(g_mrc_color[c],ncolor);
 			SetHudTextParams(g_hud_x,g_hud_y+ c*2*HUD_LINE_SEPARATION,30.0,ncolor[0],ncolor[1],ncolor[2],255, 0, 0.0, 0.0, 0.0);
-			
+
 			GetHudString(strHud, PLATFORM_MAX_PATH, c, true);
-			
+
 			for(int client = 1; client <= MaxClients; client++)
 			{
 				if(IsValidClient(client))
@@ -2963,19 +3013,19 @@ public void RenderHud()
 				}
 			}
 		}
-	
+
 	}
 	//Just one rocket
 	else if (g_max_rockets == 1)
 	{
 		int ncolor[3];
 		char strHud[PLATFORM_MAX_PATH];
-		
+
 		GetIntColor(g_hud_color,ncolor);
 		SetHudTextParams(g_hud_x,g_hud_y,30.0,ncolor[0],ncolor[1],ncolor[2],255, 0, 0.0, 0.0, 0.0);
-		
+
 		GetHudString(strHud, PLATFORM_MAX_PATH, 0, false);
-		
+
 		for(int client = 1; client <= MaxClients; client++)
 		{
 			if(IsValidClient(client))
@@ -2983,9 +3033,74 @@ public void RenderHud()
 				ShowSyncHudText(client, g_HudSyncs[0], "%s",strHud);
 			}
 		}
-	
+
 	}
 }
+
+public Action ShowHintText(Handle timer)
+{
+	// Try defining it here
+	char rocketInfo[128] = "";
+	int[] rocketArray = new int[MaxClients];
+	int count = 0;
+
+	for(int i = 0; i < MaxClients; i++)
+	{
+		int entity = g_RocketEnt[i].entity;
+		if(IsValidEntity(entity))
+		{
+			rocketArray[count] = i;
+			count++;
+		}
+	}
+
+	if(count == 0)
+	{
+		return Plugin_Handled;
+	}
+
+	for(int i = 0; i < count; i++)
+	{
+		int rIndex = rocketArray[i];
+		// Catch all rockets and format them in a nice text for the hint text
+		float rocketSpeed = g_RocketEnt[rIndex].speed * 1.90500 * 60 * 60 / 100000;
+
+		// Get rocketOwner
+		char owner[128];
+		if( g_RocketEnt[rIndex].owner == 0)
+		{
+			Format(owner, sizeof(owner), "Server");
+		}
+		else
+		{
+			if(IsValidClient(g_RocketEnt[rIndex].owner))
+			{
+				Format(owner, sizeof(owner),"%N", g_RocketEnt[rIndex].owner);
+			}
+		}
+
+		if (strlen(rocketInfo) != 0)
+		{
+			FormatEx(rocketInfo, sizeof(rocketInfo), "%s\n", rocketInfo);
+		}
+		FormatEx(rocketInfo, sizeof(rocketInfo), "%sRocket from %s, flying at %.1f KM/h",  rocketInfo, owner, rocketSpeed);
+	}
+	PrintHintTextToAll(rocketInfo);
+
+	return Plugin_Continue;
+}
+
+/*public dbModeChanged(Handle:hConVar, const String:sOldValue[], const String:sNewValue[])
+{
+	if(sNewValue >= 0 && sNewValue =< 3)
+	{
+		g_iPluginMode = sNewValue;
+	}
+	else
+	{
+		PrintToChatAll("[DB] Invalid new mode value");
+	}
+}*/
 
 void GetIntColor(char[] strColor, int buffer[3])
 {
@@ -3000,7 +3115,7 @@ void GetIntColor(char[] strColor, int buffer[3])
 void GetHudString(char[] strHud, int length, int rIndex, bool twoLines)
 {
 	char owner[MAX_NAME_LENGTH] = "-", target[MAX_NAME_LENGTH] = "-", speed[MAX_NAME_LENGTH] = "-",deflects[MAX_NAME_LENGTH] = "-";
-	
+
 	int index = EntRefToEntIndex(g_RocketEnt[rIndex].entity);
 	if (index != INVALID_ENT_REFERENCE)
 	{
@@ -3030,7 +3145,7 @@ void GetHudString(char[] strHud, int length, int rIndex, bool twoLines)
 		{
 			Format(deflects,MAX_NAME_LENGTH,"%d",g_RocketEnt[rIndex].deflects);
 		}
-			
+
 	}
 	if(twoLines)
 	{
@@ -3058,13 +3173,14 @@ bool useMultiColor()
 ** -------------------------------------------------------------------------- */
 public void OnConfigsExecuted()
 {
-	if(!g_isDBmap) 
+	if(!g_isDBmap)
 	{
 		return;
 	}
 	db_airdash_def = GetConVarInt(db_airdash);
 	db_push_def = GetConVarInt(db_push);
 	db_burstammo_def = GetConVarInt(db_burstammo);
+	db_hintSnd_def = GetConVarInt(db_hintSnd);
 	SetupCvars();
 }
 
@@ -3077,6 +3193,7 @@ public void SetupCvars()
 	SetConVarInt(db_airdash, 0);
 	SetConVarInt(db_push, 0);
 	SetConVarInt(db_burstammo,0);
+	SetConVarInt(db_hintSnd, 0);
 }
 
 /* ResetCvars()
@@ -3088,7 +3205,8 @@ public void ResetCvars()
 	SetConVarInt(db_airdash, db_airdash_def);
 	SetConVarInt(db_push, db_push_def);
 	SetConVarInt(db_burstammo, db_burstammo_def);
-	
+	SetConVarInt(db_hintSnd, db_hintSnd_def);
+
 	ProcessListeners(true);
 	g_1v1_Music.Clear();
 	g_SndRoundStart.Clear();
@@ -3107,7 +3225,7 @@ public void ResetCvars()
 ** -------------------------------------------------------------------------- */
 public Action OnPlayerRunCmd(iClient, &iButtons, &iImpulse, Float:fVelocity[3], Float:fAngles[3], &iWeapon)
 {
-	if(!g_isDBmap) 
+	if(!g_isDBmap)
 	{
 		return Plugin_Continue;
 	}
@@ -3122,21 +3240,21 @@ public Action OnPlayerRunCmd(iClient, &iButtons, &iImpulse, Float:fVelocity[3], 
 ** -------------------------------------------------------------------------- */
 public Action Command_Block(int client, const char[] command, int argc)
 {
-	if(g_isDBmap) 
+	if(g_isDBmap)
 	{
 		return Plugin_Stop;
 	}
-	
+
 	return Plugin_Continue;
 }
 
 /* Command_Block_PreparationOnly()
 **
-** Blocks a command, but only if we are on preparation 
+** Blocks a command, but only if we are on preparation
 ** -------------------------------------------------------------------------- */
 public Action Command_Block_PreparationOnly(client, const char[] command, int argc)
 {
-	if(g_isDBmap && g_onPreparation) 
+	if(g_isDBmap && g_onPreparation)
 	{
 		return Plugin_Stop;
 	}
@@ -3157,7 +3275,7 @@ void EmitSoundClientDB(int client, int rocketsnd, int rIndex, bool fromEntity)
 	}
 	char strFile[PLATFORM_MAX_PATH]="";
 	GetSndString(strFile,PLATFORM_MAX_PATH,rIndex,rocketsnd);
-	
+
 	if(StrEqual(strFile, ""))
 	{
 		return;
@@ -3177,7 +3295,7 @@ void EmitSoundClientDB(int client, int rocketsnd, int rIndex, bool fromEntity)
 ** Emits a to everyone checking if the sound is empty, using the rocket's sound enum.
 ** -------------------------------------------------------------------------- */
 void EmitSoundAllDB(int rocketsnd, int rIndex, bool fromEntity)
-{	
+{
 	int index = EntRefToEntIndex(g_RocketEnt[rIndex].entity);
 	if (index == INVALID_ENT_REFERENCE)
 	{
@@ -3354,25 +3472,25 @@ stock bool IsValidClient(int client)
 **
 ** Get alive players of a team (ignoring one)
 ** -------------------------------------------------------------------------- */
-stock GetAlivePlayersCount(team,ignore=-1) 
+stock GetAlivePlayersCount(team,ignore=-1)
 {
 	int count = 0, i;
 
-	for( i = 1; i <= MaxClients; i++ ) 
+	for( i = 1; i <= MaxClients; i++ )
 	{
 		if(IsValidAliveClient(i) && GetClientTeam(i) == team && i != ignore)
 		{
 			count++;
 		}
 	}
-	return count; 
-}  
+	return count;
+}
 
 /* GetAlivePlayersCount()
 **
 ** Get last player of a team (ignoring one), asuming that GetAlivePlayersCountwas used before.
 ** -------------------------------------------------------------------------- */
-stock GetLastPlayer(team,ignore=-1) 
+stock GetLastPlayer(team,ignore=-1)
 {
 	for(int i = 1; i <= MaxClients; i++ )
 	{
@@ -3382,7 +3500,7 @@ stock GetLastPlayer(team,ignore=-1)
 		}
 	}
 	return -1;
-}  
+}
 
 /* CopyVectors()
 **
@@ -3410,7 +3528,7 @@ stock void LerpVectors(float fA[3], float fB[3], float fC[3], float t)
 	{
 		t = 1.0;
 	}
-	
+
 	fC[0] = fA[0] + (fB[0] - fA[0]) * t;
 	fC[1] = fA[1] + (fB[1] - fA[1]) * t;
 	fC[2] = fA[2] + (fB[2] - fA[2]) * t;
@@ -3427,7 +3545,7 @@ stock void CalculateDirectionToClient(int iEntity, int iClient, float fOut[3])
 	{
 		return;
 	}
-	float fRocketPosition[3]; 
+	float fRocketPosition[3];
 	GetEntPropVector(iEntity, Prop_Send, "m_vecOrigin", fRocketPosition);
 	GetClientEyePosition(iClient, fOut);
 	MakeVectorFromPoints(fRocketPosition, fOut, fOut);
@@ -3451,7 +3569,7 @@ stock CleanString(String:strBuffer[])
 			case '\t': strBuffer[iPos] = ' ';
 		}
 	}
-	
+
 	// Trim string
 	TrimString(strBuffer);
 }

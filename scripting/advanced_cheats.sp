@@ -4,10 +4,10 @@
 /* When making this plugin everything went smooth but there was one thing I didn't think about
 Client-Side cheats oh noooes well the problem is upon connecting a client or your game recieves from the server that
 sv_cheats is disabled (which it is) so I tried making a code which switched sv_cheats on did the client command and switch it back off.
-1 big problem SourceMod can't run all client commands to prevent servers from causing changes to player settings, 
-well guess what the client-side cheats we're accessing are blocked from us to be run*/
+1 big problem SourceMod can't run all client commands to prevent servers from causing changes to player settings,
+well guess what the client-side cheats we're accessing are blocked from us to be run */
 
-public Plugin:myinfo = 
+public Plugin:myinfo =
 {
 	name = "Cheat commands",
 	author = "Yimura",
@@ -18,12 +18,12 @@ public Plugin:myinfo =
 public OnPluginStart()
 {
 	CreateConVar("sm_cheat_version", "1.11.2", "Cheat commands version", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
-	
+
 	//g_hEnableClientSideCMDs = CreateConVar("sm_clientcheat", "0", "Enable Client-Side cheats (if you don't know what this means leave it disabled).");
-	
+
 	RegAdminCmd("sm_ch", Command_Cheat_Command, ADMFLAG_CHEATS, "Usage: sm_ch <addcond #/hurtme>");
 	//RegAdminCmd("sm_cc", Command_Client_Cheat, ADMFLAG_CHEATS, "Usage: sm_cc <impulse>")
-	
+
 	AutoExecConfig(true, "advanced_cheats");
 }
 
@@ -46,13 +46,13 @@ public Action:Command_Cheat_Command(client, args)
 stock PerformCheatCommand(client, String:cmd[])
 {
 	new Handle:cvar = FindConVar("sv_cheats"), bool:enabled = GetConVarBool(cvar), flags = GetConVarFlags(cvar);
-	if(!enabled) 
+	if(!enabled)
 	{
 		SetConVarFlags(cvar, flags^(FCVAR_NOTIFY|FCVAR_REPLICATED));
 		SetConVarBool(cvar, true);
 	}
 	FakeClientCommand(client, "%s", cmd);
-	if(!enabled) 
+	if(!enabled)
 	{
 		SetConVarBool(cvar, false);
 		SetConVarFlags(cvar, flags);
@@ -72,7 +72,7 @@ public Action:ExecDelay(Handle:timer)
 */
 
 /*new Handle:FakeCvarTimers[MAXPLAYERS+1];
-	 
+
 public void OnAdminPostChecked(int client)
 {
 	if((GetUserFlagBits(client) & ADMFLAG_CHEATS) == ADMFLAG_CHEATS)
@@ -80,7 +80,7 @@ public void OnAdminPostChecked(int client)
 		FakeCvarTimers[client] = CreateTimer(5.0, CvarFaked, client);
 	}
 }
- 
+
 public void OnClientDisconnect(int client)
 {
 	if (FakeCvarTimers[client] != null)
@@ -104,7 +104,7 @@ public Action:Command_Client_Cheat(client, args)
 {
 	decl String:ccmd[65];
 	GetCmdArgString(ccmd, sizeof(ccmd));
-	
+
 	new Handle:cvar = FindConVar("sv_cheats");
 	SetConVarBool(cvar, true);
 	FakeClientCommand(client, ccmd);
