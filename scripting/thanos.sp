@@ -5,15 +5,15 @@
 #define PLUGIN_AUTHOR "Yimura"
 #define PLUGIN_VERSION "0.1.0"
 
-#define CLASS_SCOUT TFClass_Scout
-#define CLASS_SOLDIER TFClass_Soldier
-#define CLASS_PYRO TFClass_Pyro
-#define CLASS_ENGINEER TFCLass_Engineer
-#define CLASS_HEAVY TFClass_Heavy
-#define CLASS_DEMOMAN TFClass_Demoman
-#define CLASS_MEDIC TFClass_Medic
-#define CLASS_SNIPER TFCLass_Sniper
-#define CLASS_SPY TFClass_Spy
+#define CLASS_SCOUT 1
+#define CLASS_SOLDIER 2
+#define CLASS_PYRO 3
+#define CLASS_ENGINEER 4
+#define CLASS_HEAVY 5
+#define CLASS_DEMOMAN 6
+#define CLASS_MEDIC 7
+#define CLASS_SNIPER 8
+#define CLASS_SPY 9
 
 #include <sourcemod>
 #include <sdktools>
@@ -75,7 +75,7 @@ public Action OnPlayerInventory(Handle event, const char[] name, bool dontBroadc
 	}
 	else if (team == TFTeam_Red)
 	{
-		TFClassType class = TF2_GetPlayerClass(client)
+		int class = GetEntProp(client, Prop_Send, "m_iClass");
 		if (class == CLASS_HEAVY)
 		{
 			SetupHulk(client);
