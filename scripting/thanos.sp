@@ -5,8 +5,20 @@
 #define PLUGIN_AUTHOR "Yimura"
 #define PLUGIN_VERSION "0.1.0"
 
+#define CLASS_SCOUT TFClass_Scout
+#define CLASS_SOLDIER TFClass_Soldier
+#define CLASS_PYRO TFClass_Pyro
+#define CLASS_ENGINEER TFCLass_Engineer
+#define CLASS_HEAVY TFClass_Heavy
+#define CLASS_DEMOMAN TFClass_Demoman
+#define CLASS_MEDIC TFClass_Medic
+#define CLASS_SNIPER TFCLass_Sniper
+#define CLASS_SPY TFClass_Spy
+
 #include <sourcemod>
 #include <sdktools>
+#include <tf2_stocks>
+#include <tf2>
 #include <tf2attributes>
 
 #pragma newdecls required
@@ -56,6 +68,35 @@ public Action OnPlayerInventory(Handle event, const char[] name, bool dontBroadc
 	}
 
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
+	TFTeam team = TF2_GetClientTeam(client);
+	if (team == TFTeam_Blue)
+	{
+		SetupThanos(client);
+	}
+	else if (team == TFTeam_Red)
+	{
+		TFClassType class = TF2_GetPlayerClass(client)
+		if (class == CLASS_HEAVY)
+		{
+			SetupHulk(client);
+		}
+		else if (class == CLASS_PYRO)
+		{
+			SetupIronMan(client);
+		}
+		else if (class == CLASS_MEDIC)
+		{
+			SetupDrStrange(client);
+		}
+		else if (class == CLASS_SNIPER)
+		{
+			SetupHawkEye(client);
+		}
+		else if (class == CLASS_SOLDIER)
+		{
+			SetupCptAmerica(client);
+		}
+	}
 }
 
 //public Action OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
@@ -80,7 +121,7 @@ public void OnGameFrame()
 /*	Class: Heavy
 *	Melee only -> buffed powers
 */
-void setupHulk(int client)
+void SetupHulk(int client)
 {
 	TF2Attrib_SetByName(client, "damage bonus", 8.0);
 	TF2Attrib_SetByName(client, "max health additive bonus", 8.0);
@@ -96,7 +137,7 @@ void setupHulk(int client)
 /*	Class: Pyro
 *	Jetpack -> already exists in TF2
 */
-void setupIronMan(int client)
+void SetupIronMan(int client)
 {
 
 }
@@ -104,7 +145,7 @@ void setupIronMan(int client)
 /*	Class: Medic
 *	Use Halloween spells and keep healing ability (possibly)
 */
-void setupDrStrange(int client)
+void SetupDrStrange(int client)
 {
 
 }
@@ -112,7 +153,7 @@ void setupDrStrange(int client)
 /*	Class: Sniper
 *	Sniper has the huntsman we can use that for his arrows
 */
-void setupHawkEye(int client)
+void SetupHawkEye(int client)
 {
 
 }
@@ -120,7 +161,7 @@ void setupHawkEye(int client)
 /*	Class: Scout
 *	Use grappling hook as spidermans web
 */
-void setupSpiderMan(int client)
+void SetupSpiderMan(int client)
 {
 
 }
@@ -128,7 +169,7 @@ void setupSpiderMan(int client)
 /*	Class: Soldier
 *	Soldier is America in itself will have to find something later tho
 */
-void setupCptAmerica(int client)
+void SetupCptAmerica(int client)
 {
 
 }
@@ -136,12 +177,12 @@ void setupCptAmerica(int client)
 /*	Class: Demoman
 *	Will need a custom model tho
 */
-void setupThanos(int client)
+void SetupThanos(int client)
 {
 
 }
 
-void getActiveWeapon(int client)
+void GetActiveWeapon(int client)
 {
 	int hClientWeapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 	return hClientWeapon;
