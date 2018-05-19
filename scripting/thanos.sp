@@ -91,32 +91,32 @@ public Action OnPlayerInventory(Handle event, const char[] name, bool dontBroadc
 		int class = GetEntProp(client, Prop_Send, "m_iClass");
 		if (class == CLASS_HEAVY)
 		{
-			PrintCenterTextAll("Playing as Hulk");
+			PrintCenterText(client, "Playing as Hulk");
 			SetupHulk(client);
 		}
 		else if (class == CLASS_PYRO)
 		{
-			PrintCenterTextAll("Playing as Ironman");
+			PrintCenterText(client, "Playing as Ironman");
 			SetupIronMan(client);
 		}
 		else if (class == CLASS_MEDIC)
 		{
-			PrintCenterTextAll("Playing as Dr Strange");
+			PrintCenterText(client, "Playing as Dr Strange");
 			SetupDrStrange(client);
 		}
 		else if (class == CLASS_SNIPER)
 		{
-			PrintCenterTextAll("Playing as Hawk Eye");
+			PrintCenterText(client, "Playing as Hawk Eye");
 			SetupHawkEye(client);
 		}
 		else if (class == CLASS_SOLDIER)
 		{
-			PrintCenterTextAll("Playing as Cpt America");
+			PrintCenterText(client, "Playing as Cpt America");
 			SetupCptAmerica(client);
 		}
 		else if (class == CLASS_SCOUT)
 		{
-			PrintCenterTextAll("Playing as Spiderman");
+			PrintCenterText(client, "Playing as Spiderman");
 			SetupSpiderMan(client);
 		}
 	}
@@ -190,15 +190,22 @@ void ChooseThanos()
 */
 void SetupHulk(int client)
 {
-	TF2Attrib_SetByName(client, "damage bonus", 8.0);
-	TF2Attrib_SetByName(client, "max health additive bonus", 8.0);
-	TF2Attrib_SetByName(client, "active health regen", 25.0);
+	int weapon = GetPlayerWeaponSlot(client, 2); // Will get the melee weapon
+	SetEntPropEnt(client, Prop_Send, "m_hActiveWeapon", weapon);
 
-	// Remove slots 1,2,4,5 (slot 3 is melee)
-	TF2_RemoveWeaponSlot(client, 1);
-	TF2_RemoveWeaponSlot(client, 2);
-	TF2_RemoveWeaponSlot(client, 4);
-	TF2_RemoveWeaponSlot(client, 5);
+	// Remove slots 1,2, (slot 3 is melee)
+	TF2_RemoveWeaponSlot(client, 0); // Primary
+	TF2_RemoveWeaponSlot(client, 1); // Secondary
+	// TF2_RemoveWeaponSlot(client, 2); // Melee Weapon
+	TF2_RemoveWeaponSlot(client, 3); // Engineer PDA
+	TF2_RemoveWeaponSlot(client, 4); // Possibly taunts 1-4
+	TF2_RemoveWeaponSlot(client, 5); // Possibly taunts 5-8
+
+	// Apply attributes on weapon -> never bind them to a client
+	TF2Attrib_SetByName(weapon, "damage bonus", 8.0);
+	TF2Attrib_SetByName(weapon, "max health additive bonus", 700.0);
+	TF2Attrib_SetByName(weapon, "health regen", 10.0);
+	TF2Attrib_SetByName(weapon, "cancel falling damage", 1.0);
 }
 
 /*	Class: Pyro
@@ -255,7 +262,7 @@ void SetupCptAmerica(int client)
 */
 void SetupThanos(int client)
 {
-	PrintToChatAll("Boi you thanos");
+	PrintToChat(client, "Boi you thanos");
 }
 
 int GetActiveWeapon(int client)
