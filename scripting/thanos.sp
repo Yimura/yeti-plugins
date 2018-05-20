@@ -30,6 +30,13 @@
 bool g_bPluginOn = false;
 Handle g_hPluginOn;
 
+int Cvar_UnbalanceLimit_def;
+int Cvar_AutoBalance_def;
+Handle Cvar_UnbalanceLimit;
+Handle Cvar_AutoBalance;
+
+bool g_bWaitingForPlayers = false;
+
 int g_iCountDownStart = 20;
 int g_iCountDown_def = 20;
 
@@ -54,6 +61,8 @@ public void OnPluginStart()
 
 	// Global events
 	HookEvent("teamplay_round_start", OnRoundStart);
+	HookEvent("teamplay_waiting_begins", OnWaitingStart);
+	HookEvent("teamplay_waiting_ends", OnWaitingEnd);
 
 	// Player events
 	//HookEvent("player_spawn", OnPlayerSpawn);
@@ -61,6 +70,9 @@ public void OnPluginStart()
 	HookEvent("post_inventory_application", OnPlayerInventory, EventHookMode_Post);
 
 	HookConVarChange(g_hPluginOn, PluginState);
+
+	Cvar_UnbalanceLimit = FindConVar("mp_teams_unbalance_limit");
+	Cvar_AutoBalance = FindConVar("mp_autoteambalance");
 
 	int pluginEnabled = GetConVarInt(g_hPluginOn);
 	if (pluginEnabled == 1)
@@ -71,7 +83,7 @@ public void OnPluginStart()
 
 public Action OnPlayerInventory(Handle event, const char[] name, bool dontBroadcast)
 {
-	if (!g_bPluginOn)
+	if (!g_bPluginOn || g_bWaitingForPlayers)
 		return;
 
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
@@ -116,9 +128,26 @@ public Action OnPlayerInventory(Handle event, const char[] name, bool dontBroadc
 	}
 }
 
-public Action OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
+public Action OnWaitingStart(Handle event, const char[] name, bool dontBroadcast)
 {
 	if (!g_bPluginOn)
+		return;
+
+	g_bWaitingForPlayers = true;
+}
+
+public Action OnWaitingEnd(Handle event, const char[] name, bool dontBroadcast)
+{
+	if (!g_bPluginOn)
+		return;
+
+	g_bWaitingForPlayers = false;
+	SetupCvars();
+}
+
+public Action OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
+{
+	if (!g_bPluginOn || g_bWaitingForPlayers)
 		return;
 
 	CreateTimer(1.0, CountDown, _, TIMER_REPEAT);
@@ -163,7 +192,7 @@ void ChooseThanos()
 	}
 
 	ChangeClientTeam(client, TEAM_BLUE);
-	TF2_SetPlayerClass(client, TFClass_Demoman, false, true);
+	TF2_SetPlayerClass(client, TFClass_DemoMan, false, true);
 	TF2_RespawnPlayer(client);
 }
 
@@ -272,10 +301,33 @@ void PluginState(ConVar convar, const char[] oldValue, const char[] newValue)
 	if (strlen(newValue) > 0)
 	{
 		g_bPluginOn = (StringToInt(newValue)!=0 ? true : false);
+		if (!g_bPluginOn)
+			ResetCvars();
 	}
 	else
 	{
 		PrintToServer("Invalid ConVar value was set");
 	}
 	return;
+}
+
+public void OnConfigsExecuted()
+{
+	if (!g_bPluginOn)
+		return;
+
+	Cvar_UnbalanceLimit_def = GetConVarInt(Cvar_UnbalanceLimit);
+	Cvar_AutoBalance_def = GetConVarInt(Cvar_AutoBalance);
+}
+
+void SetupCvars()
+{
+	SetConVarInt(Cvar_UnbalanceLimit, 0);
+	SetConVarInt(Cvar_AutoBalance, 0);
+}
+
+void ResetCvars()
+{
+	SetConVarInt(Cvar_UnbalanceLimit, Cvar_UnbalanceLimit_def);
+	SetConVarInt(Cvar_AutoBalance, Cvar_AutoBalance_def);
 }

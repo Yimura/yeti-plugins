@@ -40,16 +40,17 @@ public void OnClientPostAdminCheck(int client)
 
 bool IsInSteamIdList(const char[] SteamId)
 {
-    char SteamIds[512];
-    GetConVarString(g_hAllowedSteamIds, SteamIds, sizeof(SteamIds));
-    char ExtractedSteamIds[100][64];
-    int iStrReceived = ExplodeString(SteamIds, ",", ExtractedSteamIds, 100, 64);
+	if(StrEqual(SteamId, "BOT", false) || StrEqual(SteamId, "STEAM_ID_LAN", false))
+		return true;
 
-    for(int i = 0; i < iStrReceived; i++)
-    {
-        if (StrEqual(ExtractedSteamIds[i], SteamId, false))
-            return true;
-    }
-
-    return false;
+	char SteamIds[512];
+	GetConVarString(g_hAllowedSteamIds, SteamIds, sizeof(SteamIds));
+	char ExtractedSteamIds[100][64];
+	int iStrReceived = ExplodeString(SteamIds, ",", ExtractedSteamIds, 100, 64);
+	for(int i = 0; i < iStrReceived; i++)
+	{
+    	if (StrEqual(ExtractedSteamIds[i], SteamId, false))
+        	return true;
+	}
+	return false;
 }
