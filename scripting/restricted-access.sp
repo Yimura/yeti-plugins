@@ -6,7 +6,6 @@
 #define PLUGIN_VERSION "0.1.0"
 
 #include <sourcemod>
-#include <sdktools>
 
 Handle g_hAllowedSteamIds;
 
