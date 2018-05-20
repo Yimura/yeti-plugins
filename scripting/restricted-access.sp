@@ -32,7 +32,10 @@ public void OnClientPostAdminCheck(int client)
 	char SteamId[64];
 	GetClientAuthId(client, AuthId_Steam2, SteamId, sizeof(SteamId), true);
 	if (!IsInSteamIdList(SteamId) && !GetAdminFlag(UserAdminId, Admin_Generic, Access_Real))
+	{
+		PrintToChatAll("%N has been kicked by the restricted access plugin", client);
 		KickClient(client, "This server has restricted access! Notify the server owner for more info.");
+	}
 }
 
 bool IsInSteamIdList(const char[] SteamId)

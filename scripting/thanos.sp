@@ -64,21 +64,15 @@ public void OnPluginStart()
 
 	int pluginEnabled = GetConVarInt(g_hPluginOn);
 	if (pluginEnabled == 1)
-	{
 		g_bPluginOn = true;
-	}
 	else
-	{
 		g_bPluginOn = false;
-	}
 }
 
 public Action OnPlayerInventory(Handle event, const char[] name, bool dontBroadcast)
 {
 	if (!g_bPluginOn)
-	{
 		return;
-	}
 
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	TFTeam team = TF2_GetClientTeam(client);
@@ -125,34 +119,21 @@ public Action OnPlayerInventory(Handle event, const char[] name, bool dontBroadc
 public Action OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 {
 	if (!g_bPluginOn)
-	{
 		return;
-	}
 
 	CreateTimer(1.0, CountDown, _, TIMER_REPEAT);
 }
 
 /*
 *	Do our checks for which weapon slot is active
-*/
+*
 public void OnGameFrame()
 {
 	if (!g_bPluginOn)
 	{
 		return;
 	}
-
-	for (int i = 1; i < MaxClients; i++)
-	{
-		if (IsClientInGame(i))
-		{
-			if (TF2_GetPlayerClass(i) == TFClass_Medic)
-			{
-				//int weapon = GetActiveWeapon(i);
-			}
-		}
-	}
-}
+}*/
 
 public Action CountDown(Handle timer)
 {
@@ -182,6 +163,7 @@ void ChooseThanos()
 	}
 
 	ChangeClientTeam(client, TEAM_BLUE);
+	TF2_SetPlayerClass(client, TFClass_Demoman, false, true);
 	TF2_RespawnPlayer(client);
 }
 
@@ -191,7 +173,7 @@ void ChooseThanos()
 void SetupHulk(int client)
 {
 	int weapon = GetPlayerWeaponSlot(client, 2); // Will get the melee weapon
-	SetEntPropEnt(client, Prop_Send, "m_hActiveWeapon", weapon);
+	EquipPlayerWeapon(client, weapon);
 
 	// Remove slots 1,2, (slot 3 is melee)
 	TF2_RemoveWeaponSlot(client, 0); // Primary
