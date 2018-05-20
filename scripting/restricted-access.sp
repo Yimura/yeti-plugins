@@ -22,19 +22,17 @@ public Plugin myinfo =
 
 public void OnPluginStart()
 {
-    CreateConVar("sm_ra_ver", PLUGIN_VERSION, "Restricted access version", FCVAR_REPLICATED | FCVAR_SPONLY | FCVAR_DONTRECORD | FCVAR_NOTIFY);
-    g_hAllowedSteamIds = CreateConVar("sm_ra_steamids", "STEAM_0:0:55845055,STEAM_1:0:167976709", "SteamId's seperated by comma who're allowed to join");
+	CreateConVar("sm_ra_ver", PLUGIN_VERSION, "Restricted access version", FCVAR_REPLICATED | FCVAR_SPONLY | FCVAR_DONTRECORD | FCVAR_NOTIFY);
+	g_hAllowedSteamIds = CreateConVar("sm_ra_steamids", "STEAM_0:0:55845055,STEAM_1:0:167976709", "SteamId's seperated by comma who're allowed to join");
 }
 
 public void OnClientPostAdminCheck(int client)
 {
-    AdminId UserAdminId = GetUserAdmin(client);
-    char SteamId[64];
-    GetClientAuthId(client, AuthId_Steam2, SteamId, sizeof(SteamId), true);
-    if (!GetAdminFlag(UserAdminId, Admin_Generic, Access_Real) || !IsInSteamIdList(SteamId))
-    {
-        KickClient(client, "This server has restricted access! Notify the server owner for more info.");
-    }
+	AdminId UserAdminId = GetUserAdmin(client);
+	char SteamId[64];
+	GetClientAuthId(client, AuthId_Steam2, SteamId, sizeof(SteamId), true);
+	if (!IsInSteamIdList(SteamId) && !GetAdminFlag(UserAdminId, Admin_Generic, Access_Real))
+		KickClient(client, "This server has restricted access! Notify the server owner for more info.");
 }
 
 bool IsInSteamIdList(const char[] SteamId)
